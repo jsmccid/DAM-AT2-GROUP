@@ -208,7 +208,7 @@ ggsave(paste(graph_dir,"state_mean.png",sep = ""))
 
 
 saveRDS(train, 'better_train.rds')
-saveRDS(test, 'better_train.rds')
+saveRDS(test, 'better_test.rds')
 
 
 
