@@ -6,11 +6,15 @@ output: html_notebook
 ```{r}
 library(tidyverse)
 library(caret)
+library(forcats)
+# library(data.table)
+# library(mltools)
+library(doParallel)
 ```
 
 
 ```{r}
-og_train_data <- readRDS("~/git/DAM-AT2-GROUP/AT2_train_STUDENT.rds")
+og_train_data <- readRDS("./AT2_train_STUDENT.rds")
 str(og_train_data)
 ```
 
@@ -28,22 +32,25 @@ new_train <- og_train_data[og_train, ]
 new_test <- og_train_data[-og_train, ]
 ```
 
+# Base data
 
-```{r}
+```{r, eval = FALSE}
 set.seed(85)
+
+
 
 # controller for boost
 
 control_lin <- trainControl(method = "adaptive_cv",
-                            number = 2,
-                            repeats = 2,
+                            number = 10,
+                            repeats = 5,
                             search = "random",
                             #summaryFunction = postResample(),
                             allowParallel = TRUE,
                             verboseIter = TRUE,
                             sampling = NULL,
-                            adaptive = list(min =2, alpha = 0.05, 
-                                        method = "BT", complete = TRUE)) 
+                            adaptive = list(min =4, alpha = 0.05, 
+                                        method = "gls", complete = TRUE)) 
 
 
   ########
@@ -74,8 +81,8 @@ control_lin <- trainControl(method = "adaptive_cv",
                            trControl = control_lin,
                            verbose = TRUE,
                            metric = "RMSE",
-                           maximize = TRUE,
-                           tuneLength= 2)
+                           maximize = FALSE,
+                           tuneLength= 75)
 
   end <- proc.time() - start
   end_time <- as.numeric((paste(end[3])))
@@ -85,7 +92,7 @@ control_lin <- trainControl(method = "adaptive_cv",
   
   # predictions
 
- # pred_class <- predict(xmodel, test_x, type = "raw")
+#  <- cbind(train, pred = predict(lin_mod, train, type = "raw")) 
 
   # pred <- data.frame(Target = test_y, preds = pred_class, probs = pred_prob$buy)
   
@@ -96,6 +103,184 @@ control_lin <- trainControl(method = "adaptive_cv",
  
 # assign("complex_boost", listout)
   
-#  save(complex_boost, file = "./models/boostf3.Rdata")
+save(lin_mod, file = "./models/boostv1.Rdata")
+  
+  # Fitting nrounds = 4, lambda = 0.679, alpha = 8.82e-05, eta = 0.436 on full training set # fail, was maximising rmse
+  
+# Fitting nrounds = 99, lambda = 0.0018, alpha = 0.826, eta = 2.95 on full training set
+  # RMSE 0.9205
 ```
+
+
+```{r}
+better_train <- readRDS("G:/git/DAM-AT2-GROUP/better_train.rds")
+# str(better_train)
+```
+
+
+```{r}
+
+set.seed(85)
+
+#transformations
+
+better_train$user_id <- as.numeric(better_train$user_id)
+better_train$item_id <- as.numeric(better_train$item_id)
+
+better_train$release_date <- as.numeric(better_train$release_date) 
+better_train$timestamp <- as.numeric(better_train$timestamp)
+
+better_train$State <- as.factor(better_train$State)
+
+better_train <- better_train %>% mutate_if(is.factor,
+                         fct_explicit_na,
+                         na_level = "missing")
+
+better_train$older_than_reviewer <- as.factor(better_train$older_than_reviewer)
+better_train$older_than_reviewer <- fct_explicit_na(better_train$older_than_reviewer, na_level = "missing")
+
+better_train_pre <- preProcess(better_train, method = "bagImpute")
+better_train <- predict(better_train_pre, newdata = better_train)
+
+better_train_x <- better_train %>% 
+  select(-rating)
+
+better_train_y <- better_train$rating
+
+better_train_1h <- dummyVars(~., data = better_train_x, fullRank = TRUE)
+better_train_1h <- predict(better_train_1h, newdata = better_train_x)
+
+
+
+ 
+  nas <- better_train %>% 
+    filter_all(any_vars(is.na(.)))
+ # 
+ # str(better_train)
+
+
+
+```
+
+
+```{r}
+
+set.seed(85)
+
+
+clust <- makePSOCKcluster(1, cores = 5)
+registerDoParallel(clust)
+
+# controller for boost
+
+control_lin <- trainControl(method = "adaptive_cv",
+                            number = 2,
+                            repeats = 2,
+                            search = "random",
+                            #summaryFunction = postResample(),
+                            allowParallel = TRUE,
+                            verboseIter = TRUE,
+                            sampling = NULL,
+                            adaptive = list(min =2, alpha = 0.05, 
+                                        method = "gls", complete = TRUE)) 
+
+  ######
+  # train model
+  
+  # timer
+ 
+  start <- proc.time()
+
+  lin_mod_better <- train(x = better_train_1h, y = better_train_y,
+                           # data = better_train_1h,
+                           method = "xgbLinear", 
+                           tree_method = "exact",
+                           # eval_metric = "RMSE",
+                           trControl = control_lin,
+                           verbose = TRUE,
+                           metric = "RMSE",
+                           maximize = FALSE,
+                           tuneLength = 2,
+                           nthread = 3)
+
+  end <- proc.time() - start
+  end_time <- as.numeric((paste(end[3])))
+  
+  ######
+  # evaluate model
+  
+  # predictions
+
+#  <- cbind(train, pred = predict(lin_mod, train, type = "raw")) 
+
+  # pred <- data.frame(Target = test_y, preds = pred_class, probs = pred_prob$buy)
+  
+  # save all outputs
+  
+
+#  listout <- llist(xmodel, end_time, pred, confusionm, perf, perf_auc, auc)
+ 
+# assign("complex_boost", listout)
+  
+# save(lin_mod_better, file = "./models/boost_better_naomit.Rdata")
+  
+  # Fitting nrounds = 68, lambda = 4.33e-05, alpha = 0.412, eta = 1.88 on full training set
+  # 4.334296e-05  4.120122e-01  68       1.8783853  # RMSE 0.8764221  0.3802058  0.6880351  10
+  
+stopCluster(clust)
+```
+
+
+
+```{r}
+better_test <- readRDS("G:/git/DAM-AT2-GROUP/better_test.rds")
+
+better_test$user_id <- as.numeric(better_test$user_id)
+better_test$item_id <- as.numeric(better_test$item_id)
+
+better_test$release_date <- as.numeric(better_test$release_date) 
+better_test$timestamp <- as.numeric(better_test$timestamp)
+
+better_test$State <- as.factor(better_test$State)
+
+better_test <- better_test %>% mutate_if(is.factor,
+                         fct_explicit_na,
+                         na_level = "missing")
+
+better_test$older_than_reviewer <- as.factor(better_test$older_than_reviewer)
+# better_test$older_than_reviewer <- fct_explicit_na(better_test$older_than_reviewer, na_level = "missing")
+levels(better_test$older_than_reviewer) <- c("FALSE", "TRUE", "missing")
+
+better_test_pre <- preProcess(better_test, method = "bagImpute")
+better_test <- predict(better_test_pre, newdata = better_test)
+
+# better_train_x <- better_train %>%
+#   select(-rating)
+
+# better_train_y <- better_test$rating
+
+
+better_test_1h <- dummyVars(~., data = better_test, fullRank = TRUE)
+better_test_1h <- predict(better_test_1h, newdata = better_test)
+
+ dplyr::setdiff(colnames(better_test_1h),colnames(better_train_1h))
+# 
+ dplyr::setdiff(colnames(better_train_1h),colnames(better_test_1h))
+
+#######################################
+ 
+ col.order <- colnames(better_train_1h)
+better_test_1h <- better_test_1h[,col.order]
+
+
+better_test$rating <- predict(lin_mod_better, better_test_1h)
+
+
+
+#pred <- data.frame(Target = test_y, preds = pred_class, probs = pred_prob$buy)
+
+
+
+```
+
 
