@@ -1,0 +1,101 @@
+---
+title: "XGBLinear"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(caret)
+```
+
+
+```{r}
+og_train_data <- readRDS("~/git/DAM-AT2-GROUP/AT2_train_STUDENT.rds")
+str(og_train_data)
+```
+
+```{r}
+set.seed(85)
+og_train_data <- og_train_data %>% 
+  select(-video_release_date, -zip_code, -item_id) %>% 
+  na.omit()
+
+og_train_data$timestamp <- as.numeric(og_train_data$timestamp)
+
+
+og_train = createDataPartition(y = og_train_data$rating, p = 0.7, list = F)
+new_train <- og_train_data[og_train, ]
+new_test <- og_train_data[-og_train, ]
+```
+
+
+```{r}
+set.seed(85)
+
+# controller for boost
+
+control_lin <- trainControl(method = "adaptive_cv",
+                            number = 2,
+                            repeats = 2,
+                            search = "random",
+                            #summaryFunction = postResample(),
+                            allowParallel = TRUE,
+                            verboseIter = TRUE,
+                            sampling = NULL,
+                            adaptive = list(min =2, alpha = 0.05, 
+                                        method = "BT", complete = TRUE)) 
+
+
+  ########
+  # create test & train 
+  
+  train <- new_train
+  test <- new_test
+  # 
+  # train_x <- model.matrix(~. -user_id, train[,-7])
+  # train_y <- train$rating
+  # 
+  # test_x <- model.matrix(~. -user_id , test[, -7])
+  # test_y <- test$rating
+  
+
+  ######
+  # train model
+  
+  # timer
+ 
+  start <- proc.time()
+
+  lin_mod <- train(rating ~. -user_id,
+                           data = train,
+                           method = "xgbLinear", 
+                           tree_method = "exact",
+                           # eval_metric = "RMSE",
+                           trControl = control_lin,
+                           verbose = TRUE,
+                           metric = "RMSE",
+                           maximize = TRUE,
+                           tuneLength= 2)
+
+  end <- proc.time() - start
+  end_time <- as.numeric((paste(end[3])))
+  
+  ######
+  # evaluate model
+  
+  # predictions
+
+ # pred_class <- predict(xmodel, test_x, type = "raw")
+
+  # pred <- data.frame(Target = test_y, preds = pred_class, probs = pred_prob$buy)
+  
+  # save all outputs
+  
+
+#  listout <- llist(xmodel, end_time, pred, confusionm, perf, perf_auc, auc)
+ 
+# assign("complex_boost", listout)
+  
+#  save(complex_boost, file = "./models/boostf3.Rdata")
+```
+
