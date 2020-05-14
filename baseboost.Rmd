@@ -9,7 +9,8 @@ library(caret)
 library(forcats)
 # library(data.table)
 # library(mltools)
-library(doParallel)
+# library(doParallel)
+library(keras)
 ```
 
 
@@ -113,15 +114,12 @@ save(lin_mod, file = "./models/boostv1.Rdata")
 
 
 ```{r}
-better_train <- readRDS("G:/git/DAM-AT2-GROUP/better_train.rds")
+better_train <- readRDS("./better_train.rds")
 # str(better_train)
 ```
 
 
 ```{r}
-
-clust <- makePSOCKcluster(1, cores = 5)
-registerDoParallel(clust)
 
 set.seed(85)
 
@@ -142,7 +140,7 @@ better_train <- better_train %>% mutate_if(is.factor,
 better_train$older_than_reviewer <- as.factor(better_train$older_than_reviewer)
 better_train$older_than_reviewer <- fct_explicit_na(better_train$older_than_reviewer, na_level = "missing")
 
-better_train_pre <- preProcess(better_train, method = "bagImpute")
+better_train_pre <- preProcess(better_train, method = "medianImpute")
 better_train <- predict(better_train_pre, newdata = better_train)
 
 better_train_x <- better_train %>% 
@@ -160,8 +158,6 @@ better_train_1h <- predict(better_train_1h, newdata = better_train_x)
     filter_all(any_vars(is.na(.)))
  # 
  # str(better_train)
-
-stopCluster(clust)
 
 ```
 
@@ -298,49 +294,6 @@ control_lin <- trainControl(method = "adaptive_cv",
   
 
 ```
-
-
-```{r}
-set.seed(85)
-
-
-
-
-# controller for boost
-
-control_lin <- trainControl(method = "adaptive_cv",
-                            number = 10,
-                            repeats = 5,
-                            search = "random",
-                            #summaryFunction = postResample(),
-                            allowParallel = TRUE,
-                            verboseIter = TRUE,
-                            sampling = NULL,
-                            adaptive = list(min =4, alpha = 0.05, 
-                                        method = "gls", complete = TRUE)) 
-
-  ######
-  # train model
-  
-  # timer
- 
-  start <- proc.time()
-
-  nn_mod_b <- train(x = better_train_1h, y = better_train_y,
-                           method = "mlpKerasDropoutCost",
-                           trControl = control_lin,
-                           verbose = TRUE,
-                           metric = "RMSE",
-                           maximize = FALSE,
-                           tuneLength = 20,
-                           nthread = 14)
-
-  end <- proc.time() - start
-  end_time <- as.numeric((paste(end[3])))
-```
-
-
-
 ```{r}
 
 clust <- makePSOCKcluster(1, cores = 5)
@@ -403,6 +356,120 @@ stopCluster(clust)
 
 # str(preds)
 write_csv(preds, "./predictions/batgb_predictionsv2.csv")
+
+#v1 xgboost linear, darren first round engineered variables
+#2 no concatenating range
+
+
+```
+
+## nerual net
+
+```{r}
+set.seed(85)
+
+
+
+
+# controller for boost
+
+control_lin <- trainControl(method = "adaptive_cv",
+                            number = 10,
+                            repeats = 5,
+                            search = "random",
+                            #summaryFunction = postResample(),
+                            allowParallel = TRUE,
+                            verboseIter = TRUE,
+                            sampling = NULL,
+                            adaptive = list(min =4, alpha = 0.05, 
+                                        method = "gls", complete = TRUE)) 
+
+  ######
+  # train model
+  
+  # timer
+ 
+  start <- proc.time()
+
+  nn_mod_b <- train(x = better_train_1h, y = better_train_y,
+                           method = "mlpKerasDropout",
+                           trControl = control_lin,
+                           verbose = TRUE,
+                           metric = "RMSE",
+                           maximize = FALSE,
+                           tuneLength = 20,
+                           nthread = 6)
+
+  end <- proc.time() - start
+  end_time <- as.numeric((paste(end[3])))
+  
+  save(nn_mod_b, file = "./models/nnetv1.Rdata")
+```
+
+
+
+```{r}
+
+# clust <- makePSOCKcluster(1, cores = 5)
+# registerDoParallel(clust)
+
+better_test <- readRDS("./better_test.rds")
+
+better_test$user_id <- as.numeric(better_test$user_id)
+better_test$item_id <- as.numeric(better_test$item_id)
+
+better_test$release_date <- as.numeric(better_test$release_date) 
+better_test$timestamp <- as.numeric(better_test$timestamp)
+
+better_test$State <- as.factor(better_test$State)
+
+better_test <- better_test %>% mutate_if(is.factor,
+                         fct_explicit_na,
+                         na_level = "missing")
+
+better_test$older_than_reviewer <- as.factor(better_test$older_than_reviewer)
+# better_test$older_than_reviewer <- fct_explicit_na(better_test$older_than_reviewer, na_level = "missing")
+levels(better_test$older_than_reviewer) <- c("FALSE", "TRUE", "missing")
+
+better_test_pre <- preProcess(better_test, method = "medianImpute")
+better_test <- predict(better_test_pre, newdata = better_test)
+
+# better_train_x <- better_train %>%
+#   select(-rating)
+
+# better_train_y <- better_test$rating
+
+
+better_test_1h <- dummyVars(~. -user_id, data = better_test, fullRank = TRUE)
+better_test_1h <- predict(better_test_1h, newdata = better_test)
+
+# dplyr::setdiff(colnames(better_test_1h),colnames(better_train_1h))
+# 
+# dplyr::setdiff(colnames(better_train_1h),colnames(better_test_1h))
+
+#######################################
+ 
+ col.order <- colnames(better_train_1h)
+better_test_1h <- better_test_1h[,col.order]
+
+
+better_test$rating <- predict(nn_mod_b, better_test_1h)
+
+better_test$user_item <- paste(better_test$user_id, better_test$item_id, sep="_")
+preds <- better_test %>% 
+  ungroup() %>% 
+  select(rating, user_item)
+
+ preds[preds$rating >= 5, "rating"] <- 5
+ preds[preds$rating <= 1, "rating"] <- 1
+
+#pred <- data.frame(Target = test_y, preds = pred_class, probs = pred_prob$buy)
+
+# 
+# stopCluster(clust)
+
+# str(preds)
+write_csv(preds, "./predictions/nn_predictionsv1.csv")
 
 #v1 xgboost linear, darren first round engineered variables
 #2 no concatenating range
