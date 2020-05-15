@@ -2,8 +2,6 @@ library(tidyverse)
 library(lubridate)
 library(forcats)
 library(caret)
-library(corrplot)
-library(ggridges)
 
 # get data from refined file given
 train <- readRDS('AT2_train_STUDENT.rds')
@@ -15,7 +13,6 @@ scrape <- readRDS('scrape.rds')
 
 genres <- colnames(train)[13:31]
 
-graph_dir = "graphs/"
 
 
 #merge with zipcodes to get state/place names
@@ -69,6 +66,12 @@ train <- train %>%
   select(-zip_code)
 
 
+#Reviews per user
+reviews <- train %>% 
+  group_by(user_id) %>% 
+  summarise(reviews = n())
+
+
 # Mean rating per User
 user_means <- train %>% 
   group_by(user_id) %>% 
@@ -109,12 +112,14 @@ train <- most_favoured%>%
   mutate(favoured = (genre == most_reviewed)) %>% 
   group_by(user_id,item_id) %>% 
   summarise(favoured = any(favoured == T)) %>% 
-  full_join(train,by = c('user_id' = 'user_id','item_id' = 'item_id'))
+  full_join(train,by = c('user_id' = 'user_id','item_id' = 'item_id')) %>% 
+  ungroup()
 
 #See if staf prefer thsi movie over teh population and also join everything
 train <-train %>% 
   mutate(staff_prefered = !is.na(item_imdb_staff_average) &(item_mean_rating < item_imdb_staff_average))%>% 
   inner_join(user_means, by = c('user_id' = 'user_id'))%>% 
+  inner_join(reviews, by = c('user_id' = 'user_id'))%>% 
   inner_join(user_age_gender_means, by = c('item_id','age_band','gender'))
 
 #general clean up
@@ -132,10 +137,12 @@ test <- most_favoured%>%
   group_by(user_id,item_id) %>% 
   summarise(favoured = any(favoured == T)) %>% 
   full_join(test,by = c('user_id' = 'user_id','item_id' = 'item_id'))%>% 
+  ungroup() %>% 
   mutate(staff_prefered = !is.na(item_imdb_staff_average) &(item_mean_rating < item_imdb_staff_average))%>% 
   mutate(older_than_reviewer = (1998 -age - year(release_date)) >= 0) %>% 
   mutate(age_diff = abs(1998 -age - year(release_date))) %>% 
   left_join(user_means, by = c('user_id' = 'user_id'))%>% 
+  inner_join(reviews, by = c('user_id' = 'user_id'))%>% 
   left_join(user_age_gender_means, by = c('item_id','age_band','gender'))
 
 test <- test %>% 
@@ -151,4 +158,14 @@ saveRDS(train, 'better_train.rds')
 saveRDS(test, 'better_test.rds')
 
 
+#use only if youre crazy/bored/have too much time on your hands
 
+train_int <- as.data.frame(t(apply(train %>% select(c(genres)), 1, combn, 2, prod))) %>% mutate_all(as.factor)
+test_int <- as.data.frame(t(apply(test %>% select(c(genres)), 1, combn, 2, prod))) %>% mutate_all(as.factor)
+
+train_exp <- bind_cols(train,train_int)
+test_exp <- bind_cols(test,test_int)
+
+
+saveRDS(train_exp, 'exp_train.rds')
+saveRDS(test_exp, 'exp_test.rds')
