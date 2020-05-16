@@ -47,9 +47,9 @@ registerDoParallel(cluster)
 
 set.seed(923)
 #random forest model
-rf_control <- trainControl(method = "adaptive_cv",
-                          number = 10,
-                          repeats = 10,
+rf_control <- trainControl(method = "repeatedcv",
+                          number = 2,
+                          repeats = 2,
                           search = 'random',
                           sampling = NULL,
                           verboseIter = F,
@@ -66,16 +66,19 @@ rf_model <- train(x = train_x_1h,y = train_y,
                     trControl = rf_control,
                     tuneLength = 20,
                     metric = 'RMSE',
+                    num.trees = 100,
                     importance = 'impurity',
                     verbose = F
 )
+stopCluster(cluster)
 end <- Sys.time() - start
 print(end)
 summary(rf_model)
 
-stopCluster(cluster)
 
-save(rf_model, file = "models/rf_1_783_38.Rdata")
+
+save(rf_model, file = "models/rf_5_490_61.Rdata")
+load("models/rf_5_490_61.Rdata")
 
 #prep testing model for predictions
 
@@ -90,14 +93,17 @@ test <- test %>%
 
 
 test$State <- NULL #as.factor(test$State)
+test$older_than_reviewer <- as.factor(test$older_than_reviewer)
+levels(test$older_than_reviewer) <- c("FALSE", "TRUE", "missing")
 
 test <- test %>% mutate_if(is.factor,
                                    fct_explicit_na,
                                    na_level = "missing") %>% 
                                    mutate_if(is.integer,as.numeric)
 
-test$older_than_reviewer <- as.factor(test$older_than_reviewer)
-levels(test$older_than_reviewer) <- c("FALSE", "TRUE", "missing")
+
+
+
 test_pre <- preProcess(test, method = "bagImpute")
 test <- predict(test_pre, newdata = test)
 
@@ -118,5 +124,17 @@ preds <- test %>%
   dplyr::select(c(user_id,item_id,rating)) %>% 
   mutate(user_item = paste(user_id,item_id,sep='_')) %>% 
   dplyr::select(c(rating,user_item))
-write.csv(preds,"rf2_predictions.csv",row.names = F)
+write.csv(preds,"rf5_predictions.csv",row.names = F)
 
+
+#make a note about clustering over fitting if it turns out baddly
+#utterstupid
+
+
+preds <- test %>% 
+  dplyr::select(c(user_id,item_id,m_cluster_rating,u_cluster_rating)) %>% 
+  mutate(rating = (m_cluster_rating+u_cluster_rating)/2) %>% 
+  mutate(user_item = paste(user_id,item_id,sep='_')) %>% 
+  dplyr::select(c(rating,user_item))
+
+write.csv(preds,"stupid_predictions.csv",row.names = F)
