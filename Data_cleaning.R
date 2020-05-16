@@ -5,13 +5,94 @@ library(caret)
 
 # get data from refined file given
 train <- readRDS('AT2_train_STUDENT.rds')
-test <- readRDS('AT2_test_STUDENT.rds')
+
+
+train <- train %>% 
+  mutate(user_id = as.numeric(user_id)) %>% 
+  mutate(item_id = as.numeric(item_id)) 
+
+
+  
 
 raw <- readRDS('train_raw.rds')
 
 scrape <- readRDS('scrape.rds')
 
 genres <- colnames(train)[13:31]
+
+#cluster movies by scrape and raw data adn get averages for each movies
+
+#first get data and clean it for clustering
+movies <- raw %>% 
+  select(-c(user_id,age,gender,zip_code,occupation,rating,timestamp,movie_title,video_release_date,imdb_url)) %>% 
+  left_join(scrape,by = c("item_id" = "movie_id")) %>% 
+  distinct() %>% 
+  select(-c(url,movie_code)) %>% 
+  mutate_if(is.logical,as.factor) %>% 
+  mutate(mature_rating = as.factor(mature_rating))%>% 
+  mutate(release_date = as.numeric(release_date)) %>% 
+  mutate_if(is.integer,as.numeric)
+
+#preporcess fore cluster
+movie_pre <- preProcess(movies, method = "medianImpute")
+movies <- predict(movie_pre, newdata = movies)
+
+movies_dum <- dummyVars(~.,data = movies %>% select(-item_id), fullRank = T)
+movies_matrix <- predict(movies_dum, newdata = movies %>% select(-item_id))
+#cluster into 100 groups
+move_clus <- kmeans(movies_matrix,100,nrow(movies))
+
+
+#combine cluster to average ratings or fill thme with 3.52 (mean of ratings) if none filled
+movies <- movies %>%
+  select(item_id)
+movies$m_cluster <- move_clus$cluster
+train <- train %>% 
+  full_join(movies)
+
+mean_rating<-mean(train$rating)
+m_ratings <- train %>% 
+  select(c(user_id,m_cluster,rating)) %>% 
+  group_by(user_id,m_cluster) %>% 
+  summarise(m_cluster_rating = mean(rating)) %>% 
+  ungroup() 
+train <-train %>% 
+  left_join(m_ratings) %>% 
+  mutate(m_cluster_rating = if_else(is.na(m_cluster_rating),mean_rating,m_cluster_rating))
+
+####now do the same but cluster users instead of movies and for each get an mena rating from them###
+
+users <- raw %>% 
+  select(c(user_id:zip_code)) %>% 
+  distinct() %>% 
+  mutate(occupation = as.factor(occupation)) %>% 
+  mutate(zip_code = as.factor(zip_code))
+
+#preporcess fore cluster
+users_pre <- preProcess(users, method = "medianImpute")
+users <- predict(users_pre, newdata = users)
+
+users_dum <- dummyVars(~.,data = users %>% select(-user_id), fullRank = T)
+users_matrix <- predict(users_dum, newdata = users %>% select(-user_id))
+#cluster into 100 groups
+users_clus <- kmeans(users_matrix,100,nrow(users))
+
+users <- users %>%
+  select(user_id)
+
+users$u_cluster <- users_clus$cluster
+train <- train %>% 
+  full_join(users)
+
+u_ratings <- train %>% 
+  select(c(user_id,u_cluster,rating)) %>% 
+  group_by(user_id,u_cluster) %>% 
+  summarise(u_cluster_rating = mean(rating)) %>% 
+  ungroup() 
+train <-train %>% 
+  left_join(u_ratings) %>% 
+  mutate(u_cluster_rating = if_else(is.na(u_cluster_rating),mean_rating,u_cluster_rating))
+ 
 
 
 
@@ -125,6 +206,14 @@ train <-train %>%
 #general clean up
 train <- train %>% select(-c(movie_title,video_release_date,imdb_url))
 
+
+
+
+test <- readRDS('AT2_test_STUDENT.rds')
+test <- test %>% 
+  mutate(user_id = as.numeric(user_id)) %>% 
+  mutate(item_id = as.numeric(item_id)) 
+
 #repeating process for test data
 genre_tab_test<-test %>% 
   gather(genre,is_off,unknown:western) %>% 
@@ -151,6 +240,21 @@ test <- test %>%
   mutate(State = if_else(is.na(State),"Unknown",State)) %>%
   select(-zip_code)
 
+test <- test %>% 
+  full_join(users)
+
+test <- test %>% 
+  full_join(movies)
+
+test <-test %>% 
+  left_join(u_ratings) %>% 
+  mutate(u_cluster_rating = if_else(is.na(u_cluster_rating),mean_rating,u_cluster_rating))
+
+
+test <-test %>% 
+  left_join(m_ratings) %>% 
+  mutate(m_cluster_rating = if_else(is.na(m_cluster_rating),mean_rating,m_cluster_rating))
+
 test <- test %>% select(-c(movie_title,video_release_date,imdb_url))
 
 
@@ -160,8 +264,13 @@ saveRDS(test, 'better_test.rds')
 
 #use only if youre crazy/bored/have too much time on your hands
 
-train_int <- as.data.frame(t(apply(train %>% select(c(genres)), 1, combn, 2, prod))) %>% mutate_all(as.factor)
-test_int <- as.data.frame(t(apply(test %>% select(c(genres)), 1, combn, 2, prod))) %>% mutate_all(as.factor)
+train_int <- as.data.frame(t(apply(train %>% select(c(genres)), 1, combn, 2, prod))) %>% 
+  select_if((function(x)length(unique(x)) == 2))%>%
+  mutate_all(as.factor)
+test_int <- as.data.frame(t(apply(test %>% select(c(genres)), 1, combn, 2, prod))) %>%
+  select(colnames(train_int)) %>% 
+  mutate_all(as.factor)
+
 
 train_exp <- bind_cols(train,train_int)
 test_exp <- bind_cols(test,test_int)
