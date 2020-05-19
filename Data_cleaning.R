@@ -7,9 +7,9 @@ library(caret)
 train <- readRDS('AT2_train_STUDENT.rds')
 
 
-train <- train %>% 
-  mutate(user_id = as.numeric(user_id)) %>% 
-  mutate(item_id = as.numeric(item_id)) 
+# train <- train %>% 
+#   mutate(user_id = as.numeric(user_id)) %>% 
+#   mutate(item_id = as.numeric(item_id)) 
 
 
   
@@ -30,6 +30,7 @@ movies <- raw %>%
   select(-c(url,movie_code)) %>% 
   mutate_if(is.logical,as.factor) %>% 
   mutate(mature_rating = as.factor(mature_rating))%>% 
+  mutate(item_id=as.factor(item_id)) %>% 
   mutate(release_date = as.numeric(release_date)) %>% 
   mutate_if(is.integer,as.numeric)
 
@@ -40,7 +41,7 @@ movies <- predict(movie_pre, newdata = movies)
 movies_dum <- dummyVars(~.,data = movies %>% select(-item_id), fullRank = T)
 movies_matrix <- predict(movies_dum, newdata = movies %>% select(-item_id))
 #cluster into 100 groups
-move_clus <- kmeans(movies_matrix,100,nrow(movies))
+move_clus <- kmeans(movies_matrix,50,nrow(movies))
 
 
 #combine cluster to average ratings or fill thme with 3.52 (mean of ratings) if none filled
@@ -52,8 +53,8 @@ train <- train %>%
 
 mean_rating<-mean(train$rating)
 m_ratings <- train %>% 
-  select(c(user_id,m_cluster,rating)) %>% 
-  group_by(user_id,m_cluster) %>% 
+  select(c(item_id,m_cluster,rating)) %>% 
+  group_by(item_id,m_cluster) %>% 
   summarise(m_cluster_rating = mean(rating)) %>% 
   ungroup() 
 train <-train %>% 
@@ -65,6 +66,7 @@ train <-train %>%
 users <- raw %>% 
   select(c(user_id:zip_code)) %>% 
   distinct() %>% 
+  mutate(user_id=as.factor(user_id)) %>% 
   mutate(occupation = as.factor(occupation)) %>% 
   mutate(zip_code = as.factor(zip_code))
 
@@ -75,7 +77,7 @@ users <- predict(users_pre, newdata = users)
 users_dum <- dummyVars(~.,data = users %>% select(-user_id), fullRank = T)
 users_matrix <- predict(users_dum, newdata = users %>% select(-user_id))
 #cluster into 100 groups
-users_clus <- kmeans(users_matrix,100,nrow(users))
+users_clus <- kmeans(users_matrix,50,nrow(users))
 
 users <- users %>%
   select(user_id)
@@ -210,9 +212,9 @@ train <- train %>% select(-c(movie_title,video_release_date,imdb_url))
 
 
 test <- readRDS('AT2_test_STUDENT.rds')
-test <- test %>% 
-  mutate(user_id = as.numeric(user_id)) %>% 
-  mutate(item_id = as.numeric(item_id)) 
+# test <- test %>% 
+#   mutate(user_id = as.numeric(user_id)) %>% 
+#   mutate(item_id = as.numeric(item_id)) 
 
 #repeating process for test data
 genre_tab_test<-test %>% 
@@ -241,10 +243,10 @@ test <- test %>%
   select(-zip_code)
 
 test <- test %>% 
-  full_join(users)
+  inner_join(users)
 
 test <- test %>% 
-  full_join(movies)
+  inner_join(movies)
 
 test <-test %>% 
   left_join(u_ratings) %>% 
