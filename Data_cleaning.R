@@ -264,19 +264,19 @@ saveRDS(train, 'better_train.rds')
 saveRDS(test, 'better_test.rds')
 
 
-#use only if youre crazy/bored/have too much time on your hands
-
-train_int <- as.data.frame(t(apply(train %>% select(c(genres)), 1, combn, 2, prod))) %>% 
-  select_if((function(x)length(unique(x)) == 2))%>%
-  mutate_all(as.factor)
-test_int <- as.data.frame(t(apply(test %>% select(c(genres)), 1, combn, 2, prod))) %>%
-  select(colnames(train_int)) %>% 
-  mutate_all(as.factor)
-
-
-train_exp <- bind_cols(train,train_int)
-test_exp <- bind_cols(test,test_int)
-
-
-saveRDS(train_exp, 'exp_train.rds')
-saveRDS(test_exp, 'exp_test.rds')
+# #use only if youre crazy/bored/have too much time on your hands
+# 
+# train_int <- as.data.frame(t(apply(train %>% select(c(genres)), 1, combn, 2, prod))) %>% 
+#   select_if((function(x)length(unique(x)) == 2))%>%
+#   mutate_all(as.factor)
+# test_int <- as.data.frame(t(apply(test %>% select(c(genres)), 1, combn, 2, prod))) %>%
+#   select(colnames(train_int)) %>% 
+#   mutate_all(as.factor)
+# 
+# 
+# train_exp <- bind_cols(train,train_int)
+# test_exp <- bind_cols(test,test_int)
+# 
+# 
+# saveRDS(train_exp, 'exp_train.rds')
+# saveRDS(test_exp, 'exp_test.rds')
