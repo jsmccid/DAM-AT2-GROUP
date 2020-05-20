@@ -1,5 +1,4 @@
 library(dplyr)
-library(lubridate)
 library(forcats)
 library(caret)
 library(randomForest)
@@ -33,17 +32,34 @@ train_df <- train_df %>% mutate_if(is.factor,
 train_df$older_than_reviewer <- as.factor(train_df$older_than_reviewer)
 train_df$older_than_reviewer <- fct_explicit_na(train_df$older_than_reviewer, na_level = "missing")
 
-train_df_pre <- preProcess(train_df, method = "medianImpute")
-train_df <- predict(train_df_pre, newdata = train_df)
+#take ratings out of train set for now
+org_rating <- train_df$rating
+
+train_df$rating = NULL
+
+rating_pre <- preProcess(as.data.frame(org_rating), method = c("center","scale"))
+train_y <- predict(rating_pre,newdata = as.data.frame(org_rating))
+
+#fill in missiing values and normalzie and
+train_df_pre <- preProcess(train_df, method = c("center","scale","bagImpute"))
+train_df_procs <- predict(train_df_pre, newdata = train_df)
+
+# chuck back in correct numbers for ids
+train_df_procs$user_id <- train_df$user_id
+train_df_procs$item_id <- train_df$item_id
+
+de_norm <- function(norm,org){
+  m<- mean(org)
+  sd <- sd(org)
+  return(sd*norm + m)
+}
 
 
+#save incase we need it later
 
-
-
-
-saveRDS(train_df, 'prep_train.rds')
-
-train_df <- readRDS('prep_train.rds')
+# saveRDS(train_df, 'prep_train.rds')
+# 
+# train_df <- readRDS('prep_train.rds')
 
 
 # #split into training and validation sets
@@ -52,9 +68,12 @@ train_df <- readRDS('prep_train.rds')
 # train_set <- train_df[train_index, ]
 # val_set <-train_df[-train_index, ]
 
+
+
 #trun into a one_hot matrix
-train_x <- train_df %>%  select(-c (rating))
-train_y <- train_df$rating
+train_x <- train_df_procs 
+rm(train_df_procs)
+
 
 train_x_1h <- dummyVars(~., data = train_x, fullRank = TRUE)
 train_x_1h <- predict(train_x_1h, newdata = train_x)
@@ -70,15 +89,14 @@ rf_control <- trainControl(method = "cv",
                           search = 'random',
                           sampling = NULL,
                           verboseIter = F,
-                          allowParallel =T ,
-                          predictionBounds = c(1,5)
+                          allowParallel =T 
                          
                           )              
 print("Training model")
 start <- Sys.time()
 
 # train the model on training set
-rf_model <- train(x = train_x_1h,y = train_y, 
+rf_model <- train(x = train_x_1h,y = train_y$org_rating, 
                    # data = train_df,
                    # tree_method = "exact",
                     method = "ranger",
@@ -131,28 +149,33 @@ max_pdp <- NULL
 #PDP graphs for siad important variables
 print("PDP graphing")
 start <- Sys.time()
-for(var in most_imp$var){
+for(var in as.character(most_imp$var)){
   cluster <- makePSOCKcluster(1, cores = 10)
   registerDoParallel(cluster)
-  
+
   dat <- pdp::partial(rf_model,pred.var = var,rug = T,train = train_x_1h,
                  type = 'regression',parallel = T)
-  
+
   stopCluster(cluster)
   dat <- dat %>%
-    rename(actual_rating = yhat) %>% 
-    rename(var_value = var) %>% 
-    mutate(var = var) 
+    rename(actual_rating = yhat) %>%
+    rename(var_value = var) %>%
+    mutate(var = var)
+  #un-nro,laize variable so its me interpretable
+  dat$var_value  = de_norm(dat$var_value,unlist(as.list(train_df[var])))
   max_pdp <- bind_rows(max_pdp,dat)
 }
+
+max_pdp$actual_rating <- de_norm(max_pdp$actual_rating,org_rating)
 end <- Sys.time() - start
 print(end)
+
 #get max values of variables
-max_pdp<-max_pdp %>% 
-  group_by(var) %>% 
+max_pdp<-max_pdp %>%
+  group_by(var) %>%
   summarise(max_val = max(var_value)) %>%
-  full_join(max_pdp, by = "var") 
-  
+  full_join(max_pdp, by = "var")
+
 #plot PDPs with virables with range 1-5
 
 ggplot(max_pdp %>%  filter(max_val <= 5),
@@ -165,21 +188,32 @@ ggplot(max_pdp %>%  filter(max_val <= 5),
 unlink(paste(graph_dir,"PDP_5.png",sep = ""))
 ggsave(paste(graph_dir,"PDP_5.png",sep = ""))
 
-#plot PDPs with virables with range 1-10
+#plot PDP with reveiws
 
-ggplot(max_pdp %>%  filter(max_val > 5),
+ggplot(max_pdp %>%  filter(var == "reviews"),
        aes(x = var_value,y=actual_rating,color = var),group =1) + geom_line()+
   scale_colour_discrete("Variables")+
-  labs(title = "PDP of variables\nof range 1-10",
-       x = "Value of Variable",
+  labs(title = "PDP of Reviews",
+       x = "Reviews",
        y = "Predicted Rating") +
   theme(legend.position="bottom",legend.direction = "vertical")
-unlink(paste(graph_dir,"PDP_10.png",sep = ""))
-ggsave(paste(graph_dir,"PDP_10.png",sep = ""))
+unlink(paste(graph_dir,"PDP_review.png",sep = ""))
+ggsave(paste(graph_dir,"PDP_review.png",sep = ""))
+
+#remianing variables
+
+ggplot(max_pdp %>%  filter(var  == "timestamp"),
+       aes(x = var_value,y=actual_rating,color = var),group =1) + geom_line()+
+  scale_colour_discrete("Variables")+
+  labs(title = "PDP of Timestamp",
+       x = "Date of review",
+       y = "Predicted Rating") +
+  theme(legend.position="bottom",legend.direction = "vertical")
+unlink(paste(graph_dir,"PDP_other.png",sep = ""))
+ggsave(paste(graph_dir,"PDP_other.png",sep = ""))
 
 
-
-save(rf_model, file = "models/rf_8_781_384.Rdata")
+#save(rf_model, file = "models/rf_8_781_384.Rdata")
 #load("models/rf_6_790_380.Rdata")
 
 #prep testing model for predictions
@@ -210,11 +244,16 @@ test <- test %>% mutate_if(is.factor,
 
 
 
-test_pre <- preProcess(test, method = "medianImpute")
-test <- predict(test_pre, newdata = test)
 
-test_1h <- dummyVars(~., data = test, fullRank = TRUE)
-test_1h <- predict(test_1h, newdata = test)
+#test_pre <- preProcess(test, method = "medianImpute")
+
+test_procs <- predict(train_df_pre, newdata = test)
+# chuck back in correct numbers for ids
+test_procs$user_id <- test$user_id
+test_procs$item_id <- test$item_id
+
+test_1h <- dummyVars(~., data = test_procs, fullRank = TRUE)
+test_1h <- predict(test_1h, newdata = test_procs)
 
 col.order <- colnames(train_x_1h)
 test_1h <- test_1h[,col.order]
@@ -224,13 +263,13 @@ test_1h <- test_1h[,col.order]
 #dplyr::setdiff(colnames(test_1h),colnames(train_x_1h))
 
 
-test$rating <- predict(rf_model, test_1h)
+test$rating <- de_norm(predict(rf_model, test_1h),org_rating)
 
 preds <- test %>% 
   dplyr::select(c(user_id,item_id,rating)) %>% 
   mutate(user_item = paste(user_id,item_id,sep='_')) %>% 
   dplyr::select(c(rating,user_item))
-write.csv(preds,"rf9__predictions.csv",row.names = F)
+write.csv(preds,"rf10__predictions.csv",row.names = F)
 
 
 #make a note about clustering over fitting if it turns out baddly
