@@ -1,0 +1,349 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(reshape2)
+library(recommenderlab)
+```
+
+
+# Item based collab filtering
+```{r}
+train <- readRDS("./AT2_train_STUDENT.rds")
+train_ratings <- train %>% 
+  select(user_id, item_id, rating) %>% 
+  pivot_wider(names_from = item_id, values_from = rating) %>% 
+  column_to_rownames(var = "user_id")
+
+train_matrix <- as.matrix(train_ratings)
+train_rrm <- as(train_matrix, "realRatingMatrix")
+
+# params, k, method, normalize, normalize_sim_matrix, alpha, na_as_zero
+
+ibcf_rec <- Recommender(train_rrm, method = "IBCF", param=list(k = 315, method = "Pearson", alpha = 0.5))
+
+preds_ibcf <- predict(ibcf_rec, train_rrm, type="ratingMatrix")
+
+calcPredictionAccuracy(preds_ibcf, train_rrm)
+
+# tune k, RMSEMIN 0.81427 @ k315  RMSE 0.903@ k675
+
+preds_ibcf_mat <- as(preds_ibcf, "matrix")
+preds_ibcf_df <- as.data.frame(preds_ibcf_mat)
+
+preds_piv_ibcf <- preds_ibcf_df
+preds_piv_ibcf <- preds_piv_ibcf %>% 
+  rownames_to_column(var = "user_id") %>% 
+  pivot_longer(cols = -user_id, names_to = "item_id", values_to = "rating")
+```
+
+
+```{r}
+test <- readRDS("./AT2_test_STUDENT.rds")
+
+test_rat <- test %>% 
+  select(user_id, item_id) %>% 
+  mutate(user_item = paste(user_id,item_id,sep = "_"))
+
+test_rat_ibcf <- left_join(test_rat, preds_piv_ibcf, by = c("user_id", "item_id"))
+
+test_na <- na.omit(test_rat)
+
+str(test_rat)
+```
+
+#user based collab filtering
+```{r}
+# params, method, nn, sample, normalize
+ubcf_rec <- Recommender(train_rrm, method = "UBCF", param=list(normalize = "center",method="Pearson", nn = 5))
+
+preds_ubcf <- predict(ubcf_rec, train_rrm, type="ratingMatrix")
+
+calcPredictionAccuracy(preds_ubcf,train_rrm)
+
+preds_ubcf_mat <- as(preds_ubcf, "matrix")
+preds_ubcf_df <- as.data.frame(preds_ubcf_mat)
+
+preds_piv_ubcf <- preds_ubcf_df
+preds_piv_ubcf <- preds_piv_ubcf %>% 
+  rownames_to_column(var = "user_id") %>% 
+  pivot_longer(cols = -user_id, names_to = "item_id", values_to = "rating")
+
+test_rat_ubcf <- left_join(test_rat, preds_piv_ubcf, by = c("user_id", "item_id"))
+test_rat_ubcf[test_rat_ubcf$rating > 5, "rating"] <- 5
+test_rat_ubcf[test_rat_ubcf$rating < 0, "rating"] <- 0 
+
+ubcf_out <- test_rat_ubcf %>% 
+  select(user_item, rating)
+
+write_csv(ubcf_out, "./predictions/ubcfv2.csv")
+
+# test_pred@data@x[test_pred@data@x[] < 0] <- 0
+# test_pred@data@x[test_pred@data@x[] > 5] <- 5
+```
+
+# $SVDF_realRatingMatrix
+
+```{r}
+# params k=10, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 200, min_improvement = 1e-06, normalize = "centre" verbose = FALSE
+
+svdf_rec <- Recommender(train_rrm, method = "SVDF", param=list(k=10, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 1000, min_improvement = 1e-07, verbose = TRUE))
+
+# Tune, RMSEMIN @ , RMSE0.9@ 
+
+preds_svdf <- predict(svdf_rec, train_rrm, type="ratingMatrix")
+
+calcPredictionAccuracy(preds_svdf,train_rrm)
+
+svde <- evaluationScheme(train_rrm, method="split", train=0.8, given=-6, goodRating=5)
+svdf_rec1 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=10, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 1000, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec2 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=10, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 200, min_improvement = 1e-07, verbose = TRUE))
+ibcf_rec1 <- Recommender(getData(svde, "train"), method = "IBCF", param=list(k = 50, method = "Pearson", alpha = 0.5))
+ibcf_rec2 <- Recommender(getData(svde, "train"), method = "IBCF", param=list(k = 100, method = "Pearson", alpha = 0.5))
+ibcf_rec3 <- Recommender(getData(svde, "train"), method = "IBCF", param=list(k = 200, method = "Pearson", alpha = 0.5))
+ibcf_rec4 <- Recommender(getData(svde, "train"), method = "IBCF", param=list(k = 300, method = "Pearson", alpha = 0.5))
+ibcf_rec5 <- Recommender(getData(svde, "train"), method = "IBCF", param=list(k = 400, method = "Pearson", alpha = 0.5))
+ibcf_rec6 <- Recommender(getData(svde, "train"), method = "IBCF", param=list(k = 500, method = "Pearson", alpha = 0.5))
+ibcf_rec7 <- Recommender(getData(svde, "train"), method = "IBCF", param=list(k = 600, method = "Pearson", alpha = 0.5))
+ibcf_rec8 <- Recommender(getData(svde, "train"), method = "IBCF", param=list(k = 700, method = "Pearson", alpha = 0.5))
+ibcf_rec9 <- Recommender(getData(svde, "train"), method = "IBCF", param=list(k = 800, method = "Pearson", alpha = 0.5))
+ibcf_rec10 <- Recommender(getData(svde, "train"), method = "IBCF", param=list(k = 900, method = "Pearson", alpha = 0.5))
+ibcf_rec11 <- Recommender(getData(svde, "train"), method = "IBCF", param=list(k = 1000, method = "Pearson", alpha = 0.5))
+ibcf_rec12 <- Recommender(getData(svde, "train"), method = "IBCF", param=list(k = 1100, method = "Pearson", alpha = 0.5))
+svdf_rec3 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=5, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 100, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec4 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=10, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 100, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec5 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=15, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 100, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec6 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=20, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 100, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec7 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=5, gamma = 0.01, lambda = 0.001, min_epochs = 50, max_epochs = 400, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec8 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=10, gamma = 0.01, lambda = 0.001, min_epochs = 50, max_epochs = 400, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec9 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=15, gamma = 0.01, lambda = 0.001, min_epochs = 50, max_epochs = 400, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec10 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=20, gamma = 0.01, lambda = 0.001, min_epochs = 50, max_epochs = 400, min_improvement = 1e-07, verbose = TRUE))
+
+
+svdfp1 <- predict(svdf_rec1, getData(svde, "known"), type="ratings")
+svdfp2 <- predict(svdf_rec2, getData(svde, "known"), type="ratings")
+ibp1 <- predict(ibcf_rec1, getData(svde, "known"), type="ratings")
+ibp2 <- predict(ibcf_rec2, getData(svde, "known"), type="ratings")
+ibp3 <- predict(ibcf_rec3, getData(svde, "known"), type="ratings")
+ibp4 <- predict(ibcf_rec4, getData(svde, "known"), type="ratings")
+ibp5 <- predict(ibcf_rec5, getData(svde, "known"), type="ratings")
+ibp6 <- predict(ibcf_rec6, getData(svde, "known"), type="ratings")
+ibp7 <- predict(ibcf_rec7, getData(svde, "known"), type="ratings")
+ibp8 <- predict(ibcf_rec8, getData(svde, "known"), type="ratings")
+ibp9 <- predict(ibcf_rec9, getData(svde, "known"), type="ratings")
+ibp10 <- predict(ibcf_rec10, getData(svde, "known"), type="ratings")
+ibp11 <- predict(ibcf_rec11, getData(svde, "known"), type="ratings")
+ibp12 <- predict(ibcf_rec12, getData(svde, "known"), type="ratings")
+svdfp3 <- predict(svdf_rec3, getData(svde, "known"), type="ratings")
+svdfp4 <- predict(svdf_rec4, getData(svde, "known"), type="ratings")
+svdfp5 <- predict(svdf_rec5, getData(svde, "known"), type="ratings")
+svdfp6 <- predict(svdf_rec6, getData(svde, "known"), type="ratings")
+svdfp7 <- predict(svdf_rec7, getData(svde, "known"), type="ratings")
+svdfp8 <- predict(svdf_rec8, getData(svde, "known"), type="ratings")
+svdfp9 <- predict(svdf_rec9, getData(svde, "known"), type="ratings")
+svdfp10 <- predict(svdf_rec10, getData(svde, "known"), type="ratings")
+
+errormods <- rbind(sv1 = calcPredictionAccuracy(svdfp1, getData(svde, "unknown")),
+               sv2 = calcPredictionAccuracy(svdfp2, getData(svde, "unknown")),
+               ib1 = calcPredictionAccuracy(ibp1, getData(svde, "unknown")),
+               ib2 = calcPredictionAccuracy(ibp2, getData(svde, "unknown")),
+               ib3 = calcPredictionAccuracy(ibp3, getData(svde, "unknown")),
+               ib4 = calcPredictionAccuracy(ibp4, getData(svde, "unknown")),
+               ib5 = calcPredictionAccuracy(ibp5, getData(svde, "unknown")),
+               ib6 = calcPredictionAccuracy(ibp6, getData(svde, "unknown")),
+               ib7 = calcPredictionAccuracy(ibp7, getData(svde, "unknown")),
+               ib8 = calcPredictionAccuracy(ibp8, getData(svde, "unknown")),
+               ib9 = calcPredictionAccuracy(ibp9, getData(svde, "unknown")),
+               ib10 = calcPredictionAccuracy(ibp10, getData(svde, "unknown")),
+               ib11 = calcPredictionAccuracy(ibp11, getData(svde, "unknown")),
+               ib12 = calcPredictionAccuracy(ibp12, getData(svde, "unknown")),
+               sv3 = calcPredictionAccuracy(svdfp2, getData(svde, "unknown")),
+               sv4 = calcPredictionAccuracy(svdfp2, getData(svde, "unknown")),
+               sv5 = calcPredictionAccuracy(svdfp2, getData(svde, "unknown")),
+               sv6 = calcPredictionAccuracy(svdfp2, getData(svde, "unknown")),
+               sv7 = calcPredictionAccuracy(svdfp2, getData(svde, "unknown")),
+               sv8 = calcPredictionAccuracy(svdfp2, getData(svde, "unknown")),
+               sv9 = calcPredictionAccuracy(svdfp2, getData(svde, "unknown")),
+               sv10 = calcPredictionAccuracy(svdfp2, getData(svde, "unknown"))
+               )
+
+errormods
+
+preds_svdf_mat <- as(preds_svdf, "matrix")
+preds_svdf_df <- as.data.frame(preds_svdf_mat)
+
+preds_piv_svdf<- preds_svdf_df
+preds_piv_svdf <- preds_svdf_df %>% 
+  rownames_to_column(var = "user_id") %>% 
+  pivot_longer(cols = -user_id, names_to = "item_id", values_to = "rating")
+
+test_rat_svdf <- left_join(test_rat, preds_piv_svdf, by = c("user_id", "item_id"))
+
+test_rat_svdf[test_rat_svdf$rating > 5, "rating"] <- 5
+test_rat_svdf[test_rat_svdf$rating < 0, "rating"] <- 0 
+
+svdf_out <- test_rat_svdf %>% 
+  select(user_item, rating)
+
+write_csv(svdf_out, "./predictions/svdfv1.csv")
+```
+
+# super out
+```{r}
+
+# test combos
+
+train_out <- train
+
+train_rat <- train_out %>% 
+  select(user_id, item_id, rating_t = rating) %>% 
+  mutate(user_item = paste(user_id,item_id,sep = "_"))
+
+train_rat_svdf <- left_join(train_rat, preds_piv_svdf, by = c("user_id", "item_id"))
+train_rat_ibcf <- left_join(train_rat, preds_piv_ibcf, by = c("user_id", "item_id"))
+
+preds_best_train <- train_rat_svdf
+preds_best_train$ibcf <- train_rat_ibcf$rating
+preds_best_train[is.na(preds_best_train$ibcf) == FALSE, "rating"] <- preds_best_train[is.na(preds_best_train$ibcf) == FALSE, "ibcf"]
+
+preds_best_train[preds_best_train$rating > 5, "rating"] <- 5
+preds_best_train[preds_best_train$rating < 0, "rating"] <- 0 
+
+RMSE(preds_best_train$rating_t, preds_best_train$rating)
+```
+
+
+# evaluation and comparison
+
+```{r, eval = FALSE}
+scheme <- evaluationScheme(ur_rrm, method="cross-validation", train = 0.8, k=5, given=-10, goodRating=4)
+
+algorithms <- list(
+  "random items" = list(name="RANDOM", param=NULL),
+  "popular items" = list(name="POPULAR", param=NULL),
+  "user-based CF" = list(name="UBCF", param=list(nn=50)),
+  "item-based CF" = list(name="IBCF", param=list(k=50)),
+  "SVD approximation" = list(name="SVD", param=list(k = 50)),
+  "SVD Funk" = list(name="SVDF", param=list(k = 50))
+)
+results <- evaluate(scheme, algorithms, type = "ratings")
+
+plot(results, ylim = c(0,100))
+```
+```{r}
+recommenderRegistry$get_entry_names()
+
+recommenderRegistry$get_entry("IBCF", dataType = "realRatingMatrix")
+recommenderRegistry$get_entry("UBCF", dataType = "realRatingMatrix")
+recommenderRegistry$get_entry("SVDF", dataType = "realRatingMatrix")
+
+# params k=10, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 200, min_improvement = 1e-06, normalize = "centre" verbose = FALSE
+```
+
+```{r}
+#BOOST on Collab
+
+control_lin <- trainControl(method = "adaptive_cv",
+                            number = 10,
+                            repeats = 5,
+                            search = "random",
+                            #summaryFunction = postResample(),
+                            allowParallel = TRUE,
+                            verboseIter = TRUE,
+                            sampling = NULL,
+                            adaptive = list(min =4, alpha = 0.05, 
+                                        method = "gls", complete = TRUE)) 
+
+
+  ########
+  # create test & train 
+  
+  train <- new_train
+  test <- new_test
+  # 
+  # train_x <- model.matrix(~. -user_id, train[,-7])
+  # train_y <- train$rating
+  # 
+  # test_x <- model.matrix(~. -user_id , test[, -7])
+  # test_y <- test$rating
+  
+
+  ######
+  # train model
+  
+  # timer
+ 
+  start <- proc.time()
+
+  lin_mod <- train(rating ~. -user_id,
+                           data = train,
+                           method = "xgbLinear", 
+                           tree_method = "exact",
+                           # eval_metric = "RMSE",
+                           trControl = control_lin,
+                           verbose = TRUE,
+                           metric = "RMSE",
+                           maximize = FALSE,
+                           tuneLength= 75)
+
+  end <- proc.time() - start
+  end_time <- as.numeric((paste(end[3])))
+  
+```
+
+
+
+```{r}
+#BOOST on Collab DART
+
+control_dart <- trainControl(method = "adaptive_cv",
+                            number = 10,
+                            repeats = 5,
+                            search = "random",
+                            #summaryFunction = postResample(),
+                            allowParallel = TRUE,
+                            verboseIter = TRUE,
+                            sampling = NULL,
+                            adaptive = list(min =4, alpha = 0.05, 
+                                        method = "gls", complete = TRUE)) 
+
+
+  ########
+  # create test & train 
+  
+  train <- new_train
+  test <- new_test
+  # 
+  # train_x <- model.matrix(~. -user_id, train[,-7])
+  # train_y <- train$rating
+  # 
+  # test_x <- model.matrix(~. -user_id , test[, -7])
+  # test_y <- test$rating
+  
+
+  ######
+  # train model
+  
+  # timer
+ 
+  start <- proc.time()
+
+  dart_mod <- train(rating ~. -user_id,
+                           data = train,
+                           method = "xgbDART", 
+                           tree_method = "exact",
+                           # eval_metric = "RMSE",
+                           trControl = control_lin,
+                           verbose = TRUE,
+                           metric = "RMSE",
+                           maximize = FALSE,
+                           tuneLength= 75)
+
+  end <- proc.time() - start
+  end_time <- as.numeric((paste(end[3])))
+  
+```
+
