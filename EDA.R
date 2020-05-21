@@ -73,7 +73,7 @@ while(i <= length(genres)){
 #check ths=is over all genres by rating
 i <- 2
 while(i <= length(genres)){
-  title <- pasteepaste(genres[i:(i+3)],collapse =",")
+  title <- paste(genres[i:(i+3)],collapse =",")
   g <- ggplot(rating_genre %>% filter(genre %in% genres[i:(i+3)]) ,aes(x=item_imdb_rating_of_ten,y=item_mean_rating,colour= rating)) + geom_point() +
     labs(x = "IMDB mean rating",y="Movie mean Rating") + ggtitle(title)+  facet_wrap(~genre)+
     scale_color_discrete(name= 'User ratings') + theme(legend.position = "bottom")
