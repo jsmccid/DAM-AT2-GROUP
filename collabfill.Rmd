@@ -407,6 +407,8 @@ preds_piv_svdf <- preds_svdf_df %>%
   rownames_to_column(var = "user_id") %>% 
   pivot_longer(cols = -user_id, names_to = "item_id", values_to = "rating")
 
+
+train <- readRDS("./AT2_train_STUDENT.rds")
 test_rat_svdf <- left_join(test_rat, preds_piv_svdf, by = c("user_id", "item_id"))
 
 test_rat_svdf[test_rat_svdf$rating > 5, "rating"] <- 5
@@ -415,6 +417,7 @@ test_rat_svdf[test_rat_svdf$rating < 0, "rating"] <- 0
 svdf_out <- test_rat_svdf %>% 
   select(user_item, rating)
 
+# save(test_rat_svdf, file = "./test_rat_svdf")
 
 train_out <- train
 
@@ -438,6 +441,20 @@ train_xg <- train_xg %>%
 
 train_xg_1h <- dummyVars(~. -user_id, data = train_xg, fullRank = TRUE)
 train_xg_1h <- predict(train_xg_1h, newdata = train_xg)
+
+
+test_sel <- test %>% 
+  select(user_id, item_id, age, gender, occupation)
+
+test_xg <- left_join(test_rat_svdf, test_sel, by = c("user_id","item_id"))
+
+test_xg$user_id <- as.numeric(test_xg$user_id)
+test_xg$item_id <- as.numeric(test_xg$item_id)
+test_xg <- test_xg %>% 
+  select(-user_item)
+
+test_xg_1h <- dummyVars(~., data = test_xg, fullRank = TRUE)
+test_xg_1h <- predict(test_xg_1h, newdata = test_xg)
 
 control_lin <- trainControl(method = "adaptive_cv",
                             number = 10,
@@ -538,5 +555,23 @@ control_dart <- trainControl(method = "adaptive_cv",
   end <- proc.time() - start
   end_time <- as.numeric((paste(end[3])))
   
+  # save(dart_mod, file = "./models/dart_collab.RData")
+  
+  dart_mod
+  
+  out_xg_xvdf <- test_xg
+  
+out_xg_xvdf$rating <- predict(dart_mod, test_xg, ntree_limit=num_round)
+
+out_xg_xvdf$user_item <- paste(out_xg_xvdf$user_id, out_xg_xvdf$item_id, sep="_")
+preds <- out_xg_xvdf %>% 
+  ungroup() %>% 
+  select(rating, user_item)
+
+ preds[preds$rating >= 5, "rating"] <- 5
+ preds[preds$rating <= 1, "rating"] <- 1
+
+ write_csv(preds, "./predictions/xg_dart_svdf2.csv")
+ 
 ```
 

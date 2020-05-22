@@ -1,0 +1,51 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(extrafont)
+```
+
+
+```{r}
+better_train <- readRDS("./better_train.rds")
+udata <- better_train
+```
+
+```{r}
+users <- udata %>% 
+  group_by(user_id) %>% 
+  summarise(age = first(age), gender = first(gender))
+```
+
+
+```{r}
+ggplot(users, aes(x = age, fill = gender)) + geom_histogram(binwidth = 5) +
+  theme_gray() + scale_fill_manual(values=c("#00bf7d", "#00b0f6")) +
+  xlab("Age")
+
+musers <- users %>% 
+  filter(gender == "M")
+
+fusers <- users %>% 
+  filter(gender == "F")
+
+ggplot(musers, aes(x = age)) + geom_histogram(binwidth = 5) + theme_gray()
+ggplot(fusers, aes(x = age)) + geom_histogram(binwidth = 5) + theme_gray()
+
+```
+
+
+```{r}
+coreusers <- users %>% 
+  filter(age >= 18, age <= 35, gender == "M")
+
+fcoreusers <- users %>% 
+  filter(age >= 18, age <= 35, gender == "F")
+
+nrow(coreusers)/nrow(users)
+nrow(fcoreusers)/nrow(users)
+```
+

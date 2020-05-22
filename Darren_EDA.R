@@ -28,8 +28,8 @@ for (var in c("favoured","rating","item_imdb_mature_rating")){
   title <- paste("Count of", var)
   ggplot(df,aes_string(x = var)) + geom_bar() +
     labs(x = var,y = "Count") + ggtitle(title)
-  unlink(paste(graph_dir,title,".png",sep = ""))
-  ggsave(paste(graph_dir,title,".png",sep = ""))
+  unlink(paste(graph_dir,title,".svg",sep = ""))
+  ggsave(paste(graph_dir,title,".svg",sep = ""), device = "svg")
 }
 
 #check user base in more detal
@@ -40,16 +40,16 @@ user_base <- df %>%
 ggplot(user_base,aes(x = gender)) + geom_bar() +
   facet_wrap(age_band~.)+
   labs(title = "Counts of users by age band and gender",x = 'Gender',y = "Count") 
-unlink(paste(graph_dir,"Counts of users by age_band and gender.png",sep = ""))
-ggsave(paste(graph_dir,"Counts of users by age_band and gender.png",sep = ""))
+unlink(paste(graph_dir,"Counts of users by age_band and gender.svg",sep = ""))
+ggsave(paste(graph_dir,"Counts of users by age_band and gender.svg",sep = ""), device = "svg")
 
 #check user ratings in more detail
 ggplot(df %>% 
          select(c(user_id,age_band,user_mean_rating,gender)) %>%
        distinct(),aes(y=user_mean_rating, x= gender)) + geom_boxplot() + facet_wrap(~age_band) + 
   labs(x = "Gender",y= "Mean rating") + ggtitle("Average ratings by\nAge band & Gender")
-unlink(paste(graph_dir,"Mean ratings by age_band and gender.png",sep = ""))
-ggsave(paste(graph_dir,"Mean ratings by age_band and gender.png",sep = ""))
+unlink(paste(graph_dir,"Mean ratings by age_band and gender.svg",sep = ""))
+ggsave(paste(graph_dir,"Mean ratings by age_band and gender.svg",sep = ""), device = "svg")
 
 
 rating_genre <- df %>% 
@@ -62,8 +62,8 @@ rating_genre <- df %>%
 ggplot(rating_genre  ,aes(x=item_imdb_rating_of_ten,y=(item_mean_rating*2),colour= rating)) + geom_point() +
   labs(x = "IMDB mean rating",y="Movie mean Rating") + ggtitle("Population mean rating")+ 
   scale_color_discrete(name= 'User ratings')
-unlink(paste(graph_dir,"Mean ratings compared to IMDB.png",sep = ""))
-ggsave(paste(graph_dir,"Mean ratings compared to IMDB.png",sep = ""))
+unlink(paste(graph_dir,"Mean ratings compared to IMDB.svg",sep = ""))
+ggsave(paste(graph_dir,"Mean ratings compared to IMDB.svg",sep = ""), device = "svg")
 
 
 #check ths=is over all genres by gender
@@ -74,8 +74,8 @@ while(i <= length(genres)){
     labs(x = "IMDB mean rating",y="Movie mean Rating") + ggtitle(title)+  facet_wrap(~genre)+
     scale_color_discrete(name= 'User ratings') + theme(legend.position = "bottom")
   print(g)
-  unlink(paste(graph_dir,title,"_gender.png",sep = ""))
-  ggsave(paste(graph_dir,title,"_gender.png",sep = ""))
+  unlink(paste(graph_dir,title,"_gender.svg",sep = ""))
+  ggsave(paste(graph_dir,title,"_gender.svg",sep = ""), device = "svg")
   i= i + 4
 }
 
@@ -88,7 +88,7 @@ while(i <= length(genres)){
     scale_color_discrete(name= 'User ratings') + theme(legend.position = "bottom")
   print(g)
   unlink(paste(graph_dir,title,"_rating.png",sep = ""))
-  ggsave(paste(graph_dir,title,"_rating.png",sep = ""))
+  ggsave(paste(graph_dir,title,"_rating.png",sep = ""), device = "svg")
   i= i + 4
 }
 
@@ -103,7 +103,7 @@ ggplot(rating_genre %>%
   labs(x = "IMDB mean rating",y="Targeted group mean Rating") + ggtitle("Mean ratings in Males 18-44")+ 
   scale_color_discrete(name= 'Genres')
 unlink(paste(graph_dir,"Mean ratings in Males 18-44.png",sep = ""))
-ggsave(paste(graph_dir,"Mean ratings in Males 18-44.png",sep = ""))
+ggsave(paste(graph_dir,"Mean ratings in Males 18-44.png",sep = ""), device = "svg")
 
 
 ggplot(rating_genre %>%
@@ -114,19 +114,19 @@ ggplot(rating_genre %>%
   labs(x = "IMDB mean rating",y="Targeted group mean Rating") + ggtitle("Mean ratings not in Males 18-44")+ 
   scale_color_discrete(name= 'Genres')
 unlink(paste(graph_dir,"Mean ratings not in Males 18-44.png",sep = ""))
-ggsave(paste(graph_dir,"Mean ratings not in Males 18-44.png",sep = ""))
+ggsave(paste(graph_dir,"Mean ratings not in Males 18-44.png",sep = ""), device = "svg")
 
 #check ratoign means by state
 ggplot((df %>% select(c(State,user_mean_rating,user_id)) %>% distinct()),aes(x=user_mean_rating,y = State)) + geom_density_ridges2() +
   labs(title = "State average ratings",x = "Rating",y = "") 
 unlink(paste(graph_dir,"state_mean.png",sep = ""))
-ggsave(paste(graph_dir,"state_mean.png",sep = ""))
+ggsave(paste(graph_dir,"state_mean.png",sep = ""), device = "svg")
 
 
 ggplot(df %>% select(item_imdb_length,item_mean_rating) %>% distinct(),aes(x=item_imdb_length,y = item_mean_rating)) + geom_point() +
   labs(x = "Runtime",y = "Rating") 
 unlink(paste(graph_dir,"run_rate.png",sep = ""))
-ggsave(paste(graph_dir,"run_rate.png",sep = ""))
+ggsave(paste(graph_dir,"run_rate.png",sep = ""), device = "svg")
 
 
 ggplot(rating_genre %>%
