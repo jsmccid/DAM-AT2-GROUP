@@ -346,12 +346,98 @@ opt <- bayesOpt(svdfbayes_par, bounds = svdfbounds, initPoints = 24, iters.n = 4
 
   end <- proc.time() - start
   end_time <- as.numeric((paste(end[3])))
+  
+  getBestPars(opt,1)
+  opt$scoreSummary
+  
+  save(opt, file = "./models/baysopt1.RData")
+  
+  svdf_opt <- Recommender(train_rrm, method = "SVDF", param=list(k=5.230934, gamma = 0.02670225, lambda = 0.00154614, min_epochs = 65.41348, max_epochs = 494.7491, min_improvement = 3.034796e-07, verbose = TRUE))
+  
+  preds_svdf <- predict(svdf_opt, train_rrm, type="ratingMatrix")
+
+preds_svdf_mat <- as(preds_svdf, "matrix")
+preds_svdf_df <- as.data.frame(preds_svdf_mat)
+
+preds_piv_svdf<- preds_svdf_df
+preds_piv_svdf <- preds_svdf_df %>% 
+  rownames_to_column(var = "user_id") %>% 
+  pivot_longer(cols = -user_id, names_to = "item_id", values_to = "rating")
+
+test_rat_svdf <- left_join(test_rat, preds_piv_svdf, by = c("user_id", "item_id"))
+
+test_rat_svdf[test_rat_svdf$rating > 5, "rating"] <- 5
+test_rat_svdf[test_rat_svdf$rating < 0, "rating"] <- 0 
+
+svdf_out <- test_rat_svdf %>% 
+  select(user_item, rating)
+
+write_csv(svdf_out, "./predictions/svdf_opt.csv")
+  
+  
 ```
 
 
 
 ```{r}
+library(tidyverse)
+library(caret)
+library(recommenderlab)
+load(file = "./models/svdf_epic.RData")
 #BOOST on Collab
+
+train <- readRDS("./AT2_train_STUDENT.rds")
+train_ratings <- train %>% 
+  select(user_id, item_id, rating) %>% 
+  pivot_wider(names_from = item_id, values_from = rating) %>% 
+  column_to_rownames(var = "user_id")
+
+train_matrix <- as.matrix(train_ratings)
+train_rrm <- as(train_matrix, "realRatingMatrix")
+
+
+
+preds_svdf <- predict(svdf_rec, train_rrm, type="ratingMatrix")
+
+preds_svdf_mat <- as(preds_svdf, "matrix")
+preds_svdf_df <- as.data.frame(preds_svdf_mat)
+
+preds_piv_svdf<- preds_svdf_df
+preds_piv_svdf <- preds_svdf_df %>% 
+  rownames_to_column(var = "user_id") %>% 
+  pivot_longer(cols = -user_id, names_to = "item_id", values_to = "rating")
+
+test_rat_svdf <- left_join(test_rat, preds_piv_svdf, by = c("user_id", "item_id"))
+
+test_rat_svdf[test_rat_svdf$rating > 5, "rating"] <- 5
+test_rat_svdf[test_rat_svdf$rating < 0, "rating"] <- 0 
+
+svdf_out <- test_rat_svdf %>% 
+  select(user_item, rating)
+
+
+train_out <- train
+
+train_rat <- train_out %>% 
+  select(user_id, item_id, rating_t = rating) %>% 
+  mutate(user_item = paste(user_id,item_id,sep = "_"))
+
+train_rat_svdf <- left_join(train_rat, preds_piv_svdf, by = c("user_id", "item_id"))
+
+train_rat_svdf[train_rat_svdf$rating > 5, "rating"] <- 5
+train_rat_svdf[train_rat_svdf$rating < 0, "rating"] <- 0 
+
+train_sel <- train %>% 
+  select(user_id, item_id, age, gender, occupation)
+
+train_xg <- left_join(train_rat_svdf, train_sel, by = c("user_id","item_id"))
+train_xg$user_id <- as.numeric(train_xg$user_id)
+train_xg$item_id <- as.numeric(train_xg$item_id)
+train_xg <- train_xg %>% 
+  select(-user_item)
+
+train_xg_1h <- dummyVars(~. -user_id, data = train_xg, fullRank = TRUE)
+train_xg_1h <- predict(train_xg_1h, newdata = train_xg)
 
 control_lin <- trainControl(method = "adaptive_cv",
                             number = 10,
@@ -407,7 +493,7 @@ control_lin <- trainControl(method = "adaptive_cv",
 #BOOST on Collab DART
 
 control_dart <- trainControl(method = "adaptive_cv",
-                            number = 10,
+                            number = 5,
                             repeats = 5,
                             search = "random",
                             #summaryFunction = postResample(),
@@ -438,16 +524,16 @@ control_dart <- trainControl(method = "adaptive_cv",
  
   start <- proc.time()
 
-  dart_mod <- train(rating ~. -user_id,
-                           data = train,
+  dart_mod <- train(rating_t ~.,
+                           data = train_xg,
                            method = "xgbDART", 
                            tree_method = "exact",
                            # eval_metric = "RMSE",
-                           trControl = control_lin,
+                           trControl = control_dart,
                            verbose = TRUE,
                            metric = "RMSE",
                            maximize = FALSE,
-                           tuneLength= 75)
+                           tuneLength= 30)
 
   end <- proc.time() - start
   end_time <- as.numeric((paste(end[3])))
