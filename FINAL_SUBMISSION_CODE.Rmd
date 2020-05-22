@@ -489,31 +489,40 @@ long_core_content <- unique(long_core_data$movie_title)
 ```
 
 
-
 # Item based collab filtering
 ```{r}
+
+#subset out only user ids, item ids and ratings from data
 train <- readRDS("./AT2_train_STUDENT.rds")
 train_ratings <- train %>% 
   select(user_id, item_id, rating) %>% 
-  pivot_wider(names_from = item_id, values_from = rating) %>% 
+  pivot_wider(names_from = item_id, values_from = rating) %>% #pivot to user item matrix
   column_to_rownames(var = "user_id")
 
+#convert to matrix
 train_matrix <- as.matrix(train_ratings)
+
+#convert to recommenderlab realRatingMatrix
 train_rrm <- as(train_matrix, "realRatingMatrix")
 
 # params, k, method, normalize, normalize_sim_matrix, alpha, na_as_zero
 
+#train icbf model
 ibcf_rec <- Recommender(train_rrm, method = "IBCF", param=list(k = 315, method = "Pearson", alpha = 0.5))
 
+#make predictions
 preds_ibcf <- predict(ibcf_rec, train_rrm, type="ratingMatrix")
 
+#calculate inset accuracy
 calcPredictionAccuracy(preds_ibcf, train_rrm)
 
 # tune k, RMSEMIN 0.81427 @ k315  RMSE 0.903@ k675
 
+#bring predictions back to dataframe format
 preds_ibcf_mat <- as(preds_ibcf, "matrix")
 preds_ibcf_df <- as.data.frame(preds_ibcf_mat)
 
+#structure predictions in user, item, rating format
 preds_piv_ibcf <- preds_ibcf_df
 preds_piv_ibcf <- preds_piv_ibcf %>% 
   rownames_to_column(var = "user_id") %>% 
@@ -524,12 +533,15 @@ preds_piv_ibcf <- preds_piv_ibcf %>%
 ```{r}
 test <- readRDS("./AT2_test_STUDENT.rds")
 
+#load test and selecct same columsn as train
 test_rat <- test %>% 
   select(user_id, item_id) %>% 
   mutate(user_item = paste(user_id,item_id,sep = "_"))
 
+#use prediction dataframe to match predictions with testset
 test_rat_ibcf <- left_join(test_rat, preds_piv_ibcf, by = c("user_id", "item_id"))
 
+#check for na (na's decrease with high k param for ibcf)
 test_na <- na.omit(test_rat)
 
 str(test_rat)
@@ -539,6 +551,8 @@ str(test_rat)
 ```{r}
 # params, method, nn, sample, normalize
 ubcf_rec <- Recommender(train_rrm, method = "UBCF", param=list(normalize = "center",method="Pearson", nn = 5))
+
+#same process for ubcf
 
 preds_ubcf <- predict(ubcf_rec, train_rrm, type="ratingMatrix")
 
@@ -570,6 +584,8 @@ write_csv(ubcf_out, "./predictions/ubcfv2.csv")
 ```{r}
 # params k=10, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 200, min_improvement = 1e-06, normalize = "centre" verbose = FALSE
 
+# same process for SVDfunk
+
 svdf_rec <- Recommender(train_rrm, method = "SVDF", param=list(k=10, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 1000, min_improvement = 1e-07, verbose = TRUE))
 
 # Tune, RMSEMIN @ , RMSE0.9@ 
@@ -578,8 +594,12 @@ preds_svdf <- predict(svdf_rec, train_rrm, type="ratingMatrix")
 
 calcPredictionAccuracy(preds_svdf,train_rrm)
 
+#create recommender evaluation scheme
+
 svde <- evaluationScheme(train_rrm, method="split", train=0.8, given=-4, goodRating=5)
 
+#manual tuning
+#create models
 
 svdf_rec1 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=10, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 1000, min_improvement = 1e-07, verbose = TRUE))
 svdf_rec2 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=10, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 200, min_improvement = 1e-07, verbose = TRUE))
@@ -620,7 +640,7 @@ svdf_rec20 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=
 # svdf_rec2 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=10, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 200, min_improvement = 1e-07, verbose = TRUE)) #9.27
 
 
-
+#make predictions
 
 svdfp1 <- predict(svdf_rec1, getData(svde, "known"), type="ratings")
 svdfp2 <- predict(svdf_rec2, getData(svde, "known"), type="ratings")
@@ -655,6 +675,7 @@ svdfp18 <- predict(svdf_rec18, getData(svde, "known"), type="ratings")
 svdfp19 <- predict(svdf_rec19, getData(svde, "known"), type="ratings")
 svdfp20 <- predict(svdf_rec20, getData(svde, "known"), type="ratings")
 
+#calculate errors
 
 errormods <- rbind(sv1 = calcPredictionAccuracy(svdfp1, getData(svde, "unknown")),
                sv2 = calcPredictionAccuracy(svdfp2, getData(svde, "unknown")),
@@ -696,6 +717,7 @@ svdf_rec <- Recommender(train_rrm, method = "SVDF", param=list(k=10, gamma = 0.0
 
 # save(svdf_rec, file = "./models/svdf_epic")
 
+#make predictions
 preds_svdf <- predict(svdf_rec, train_rrm, type="ratingMatrix")
 
 preds_svdf_mat <- as(preds_svdf, "matrix")
@@ -722,6 +744,8 @@ write_csv(svdf_out, "./predictions/svdfv2.csv")
 
 # test combos
 
+#attempt to improve by combining ibcf and svdf (svdf alone had better outcomes)
+
 train_out <- train
 
 train_rat <- train_out %>% 
@@ -745,6 +769,8 @@ RMSE(preds_best_train$rating_t, preds_best_train$rating)
 # evaluation and comparison
 
 ```{r, eval = FALSE}
+
+#compare a variety of model types
 scheme <- evaluationScheme(ur_rrm, method="cross-validation", train = 0.8, k=5, given=-10, goodRating=4)
 
 algorithms <- list(
@@ -770,25 +796,31 @@ recommenderRegistry$get_entry("SVDF", dataType = "realRatingMatrix")
 ```
 
 ```{r}
-#bayes opt
+#using bayes optimisation to optimise svdf hyperparameters
 
 library(rBayesianOptimization)
 library(ParBayesianOptimization)
 library(doParallel)
 library(recommenderlab)
 
+#create evaluation scheme
+
 svde <- evaluationScheme(train_rrm, method="split", train=0.8, given=-4, goodRating=5)
+
+#function for optimisation by bayesopt
 
 svdfbayes <- function (kk, gam, lam, minep, maxep, minimp) {
   r <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=kk, gamma = gam, lambda = lam, min_epochs = minep, max_epochs = maxep, min_improvement = minimp, verbose = FALSE))
   p <- predict(r, getData(svde, "known"), type="ratings")
-  c <- -(calcPredictionAccuracy(p, getData(svde, "unknown"))[1])
+  c <- -(calcPredictionAccuracy(p, getData(svde, "unknown"))[1]) #use negative RMSE and bayesopt maximizes score
   
   pmat <- as(p, "matrix")
   pdf <- as.data.frame(pmat)
   
-  list(Score = c, Pred = pdf)
+  list(Score = c, Pred = pdf) #output must be list with Score
 }
+
+#set outer bounds for each parameter
 
 svdfbounds <- list(
   kk = c(4,40),
@@ -797,7 +829,9 @@ svdfbounds <- list(
   minep = c(10,70),
   maxep = c(80,1000),
   minimp = c(0.0000001,0.00001)
+  
 )
+## intial single threaded option
 # start <- proc.time()
 # 
 # opt <- BayesianOptimization(svdfbayes, bounds = svdfbounds, init_grid_dt = NULL, init_points = 8, n_iter = 4, acq = "ucb", kappa = 2.576, eps = 0, verbose = TRUE)
@@ -805,7 +839,7 @@ svdfbounds <- list(
 #   end <- proc.time() - start
 #   end_time <- as.numeric((paste(end[3])))
   
-
+#multithread using parbayes
 svdfbayes_par <- function (kk, gam, lam, minep, maxep, minimp) {
   r <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=kk, gamma = gam, lambda = lam, min_epochs = minep, max_epochs = maxep, min_improvement = minimp, verbose = FALSE))
   p <- predict(r, getData(svde, "known"), type="ratings")
@@ -821,11 +855,41 @@ svdfbayes_par <- function (kk, gam, lam, minep, maxep, minimp) {
   registerDoParallel(cores = 3)
   
   
+  # use best params from opt
   start <- proc.time()
 opt <- bayesOpt(svdfbayes_par, bounds = svdfbounds, initPoints = 24, iters.n = 48, iters.k = 6, acq = "ucb", kappa = 2.576, eps = 0, verbose = TRUE, parallel = TRUE)
 
   end <- proc.time() - start
   end_time <- as.numeric((paste(end[3])))
+  
+  getBestPars(opt,1)
+  opt$scoreSummary
+  
+  save(opt, file = "./models/baysopt1.RData")
+  
+  svdf_opt <- Recommender(train_rrm, method = "SVDF", param=list(k=5.230934, gamma = 0.02670225, lambda = 0.00154614, min_epochs = 65.41348, max_epochs = 494.7491, min_improvement = 3.034796e-07, verbose = TRUE))
+  
+  preds_svdf <- predict(svdf_opt, train_rrm, type="ratingMatrix")
+
+preds_svdf_mat <- as(preds_svdf, "matrix")
+preds_svdf_df <- as.data.frame(preds_svdf_mat)
+
+preds_piv_svdf<- preds_svdf_df
+preds_piv_svdf <- preds_svdf_df %>% 
+  rownames_to_column(var = "user_id") %>% 
+  pivot_longer(cols = -user_id, names_to = "item_id", values_to = "rating")
+
+test_rat_svdf <- left_join(test_rat, preds_piv_svdf, by = c("user_id", "item_id"))
+
+test_rat_svdf[test_rat_svdf$rating > 5, "rating"] <- 5
+test_rat_svdf[test_rat_svdf$rating < 0, "rating"] <- 0 
+
+svdf_out <- test_rat_svdf %>% 
+  select(user_item, rating)
+
+write_csv(svdf_out, "./predictions/svdf_opt.csv")
+  
+  
 ```
 
 
