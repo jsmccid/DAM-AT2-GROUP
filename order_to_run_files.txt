@@ -1,0 +1,39 @@
+Relavant file Run Tree
+
+(Should be able to run once and produce all EDA and model)
+
+
+FINAL_SUBMISSION_CODE.Rmd 
+	+
+
+(Files created during work)
+
+Data_cleaning.R 
+	+
+	|
+	+---> Darren_EDA.R 
+	|
+	+---> Random_Forest.R
+	|
+	+---> Sach_modelling.R 
+	|
+	+--->cf_attempt_sach2.R
+	|	
+	+--->baseboost.Rmd
+
+
+Subscriptions&Ads_EDA.R
+	+
+
+collabfill.Rmd
+	+
+
+
+
+
+
+
+
+
+
+
