@@ -113,14 +113,29 @@ ibcf_rec9 <- Recommender(getData(svde, "train"), method = "IBCF", param=list(k =
 ibcf_rec10 <- Recommender(getData(svde, "train"), method = "IBCF", param=list(k = 900, method = "Pearson", alpha = 0.5))
 ibcf_rec11 <- Recommender(getData(svde, "train"), method = "IBCF", param=list(k = 1000, method = "Pearson", alpha = 0.5))
 ibcf_rec12 <- Recommender(getData(svde, "train"), method = "IBCF", param=list(k = 1100, method = "Pearson", alpha = 0.5))
-svdf_rec3 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=5, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 100, min_improvement = 1e-07, verbose = TRUE))
-svdf_rec4 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=10, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 100, min_improvement = 1e-07, verbose = TRUE))
-svdf_rec5 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=15, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 100, min_improvement = 1e-07, verbose = TRUE))
-svdf_rec6 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=20, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 100, min_improvement = 1e-07, verbose = TRUE))
-svdf_rec7 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=5, gamma = 0.01, lambda = 0.001, min_epochs = 50, max_epochs = 400, min_improvement = 1e-07, verbose = TRUE))
-svdf_rec8 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=10, gamma = 0.01, lambda = 0.001, min_epochs = 50, max_epochs = 400, min_improvement = 1e-07, verbose = TRUE))
-svdf_rec9 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=15, gamma = 0.01, lambda = 0.001, min_epochs = 50, max_epochs = 400, min_improvement = 1e-07, verbose = TRUE))
-svdf_rec10 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=20, gamma = 0.01, lambda = 0.001, min_epochs = 50, max_epochs = 400, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec3 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=5, gamma = 0.03, lambda = 0.001, min_epochs = 50, max_epochs = 100, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec4 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=10, gamma = 0.03, lambda = 0.001, min_epochs = 50, max_epochs = 100, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec5 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=15, gamma = 0.03, lambda = 0.001, min_epochs = 50, max_epochs = 100, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec6 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=20, gamma = 0.03, lambda = 0.001, min_epochs = 50, max_epochs = 100, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec7 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=5, gamma = 0.04, lambda = 0.001, min_epochs = 50, max_epochs = 400, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec8 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=10, gamma = 0.04, lambda = 0.001, min_epochs = 50, max_epochs = 400, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec9 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=15, gamma = 0.04, lambda = 0.001, min_epochs = 50, max_epochs = 400, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec10 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=20, gamma = 0.04, lambda = 0.001, min_epochs = 50, max_epochs = 400, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec11 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=7, gamma = 0.05, lambda = 0.001, min_epochs = 50, max_epochs = 150, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec12 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=7, gamma = 0.05, lambda = 0.001, min_epochs = 50, max_epochs = 150, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec13 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=15, gamma = 0.05, lambda = 0.001, min_epochs = 50, max_epochs = 150, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec14 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=7, gamma = 0.05, lambda = 0.001, min_epochs = 50, max_epochs = 250, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec15 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=7, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 250, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec16 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=15, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 250, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec17 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=15, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 250, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec18 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=7, gamma = 0.03, lambda = 0.001, min_epochs = 50, max_epochs = 250, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec19 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=8, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 50, min_improvement = 1e-07, verbose = TRUE))
+svdf_rec20 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=8, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 1000, min_improvement = 1e-07, verbose = TRUE))
+
+# svdf_rec18 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=7, gamma = 0.03, lambda = 0.001, min_epochs = 50, max_epochs = 250, min_improvement = 1e-07, verbose = TRUE)) #9.30
+# svdf_rec2 <- Recommender(getData(svde, "train"), method = "SVDF", param=list(k=10, gamma = 0.015, lambda = 0.001, min_epochs = 50, max_epochs = 200, min_improvement = 1e-07, verbose = TRUE)) #9.27
+
+
 
 
 svdfp1 <- predict(svdf_rec1, getData(svde, "known"), type="ratings")
@@ -145,6 +160,17 @@ svdfp7 <- predict(svdf_rec7, getData(svde, "known"), type="ratings")
 svdfp8 <- predict(svdf_rec8, getData(svde, "known"), type="ratings")
 svdfp9 <- predict(svdf_rec9, getData(svde, "known"), type="ratings")
 svdfp10 <- predict(svdf_rec10, getData(svde, "known"), type="ratings")
+svdfp11 <- predict(svdf_rec11, getData(svde, "known"), type="ratings")
+svdfp12 <- predict(svdf_rec12, getData(svde, "known"), type="ratings")
+svdfp13 <- predict(svdf_rec13, getData(svde, "known"), type="ratings")
+svdfp14 <- predict(svdf_rec14, getData(svde, "known"), type="ratings")
+svdfp15 <- predict(svdf_rec15, getData(svde, "known"), type="ratings")
+svdfp16 <- predict(svdf_rec16, getData(svde, "known"), type="ratings")
+svdfp17 <- predict(svdf_rec17, getData(svde, "known"), type="ratings")
+svdfp18 <- predict(svdf_rec18, getData(svde, "known"), type="ratings")
+svdfp19 <- predict(svdf_rec19, getData(svde, "known"), type="ratings")
+svdfp20 <- predict(svdf_rec20, getData(svde, "known"), type="ratings")
+
 
 errormods <- rbind(sv1 = calcPredictionAccuracy(svdfp1, getData(svde, "unknown")),
                sv2 = calcPredictionAccuracy(svdfp2, getData(svde, "unknown")),
@@ -160,17 +186,31 @@ errormods <- rbind(sv1 = calcPredictionAccuracy(svdfp1, getData(svde, "unknown")
                ib10 = calcPredictionAccuracy(ibp10, getData(svde, "unknown")),
                ib11 = calcPredictionAccuracy(ibp11, getData(svde, "unknown")),
                ib12 = calcPredictionAccuracy(ibp12, getData(svde, "unknown")),
-               sv3 = calcPredictionAccuracy(svdfp2, getData(svde, "unknown")),
-               sv4 = calcPredictionAccuracy(svdfp2, getData(svde, "unknown")),
-               sv5 = calcPredictionAccuracy(svdfp2, getData(svde, "unknown")),
-               sv6 = calcPredictionAccuracy(svdfp2, getData(svde, "unknown")),
-               sv7 = calcPredictionAccuracy(svdfp2, getData(svde, "unknown")),
-               sv8 = calcPredictionAccuracy(svdfp2, getData(svde, "unknown")),
-               sv9 = calcPredictionAccuracy(svdfp2, getData(svde, "unknown")),
-               sv10 = calcPredictionAccuracy(svdfp2, getData(svde, "unknown"))
+               sv3 = calcPredictionAccuracy(svdfp3, getData(svde, "unknown")),
+               sv4 = calcPredictionAccuracy(svdfp4, getData(svde, "unknown")),
+               sv5 = calcPredictionAccuracy(svdfp5, getData(svde, "unknown")),
+               sv6 = calcPredictionAccuracy(svdfp6, getData(svde, "unknown")),
+               sv7 = calcPredictionAccuracy(svdfp7, getData(svde, "unknown")),
+               sv8 = calcPredictionAccuracy(svdfp8, getData(svde, "unknown")),
+               sv9 = calcPredictionAccuracy(svdfp9, getData(svde, "unknown")),
+               sv10 = calcPredictionAccuracy(svdfp10, getData(svde, "unknown")),
+               sv11 = calcPredictionAccuracy(svdfp11, getData(svde, "unknown")),
+               sv12 = calcPredictionAccuracy(svdfp12, getData(svde, "unknown")),
+               sv13 = calcPredictionAccuracy(svdfp13, getData(svde, "unknown")),
+               sv14 = calcPredictionAccuracy(svdfp14, getData(svde, "unknown")),
+               sv15 = calcPredictionAccuracy(svdfp15, getData(svde, "unknown")),
+               sv16 = calcPredictionAccuracy(svdfp16, getData(svde, "unknown")),
+               sv17 = calcPredictionAccuracy(svdfp17, getData(svde, "unknown")),
+               sv18 = calcPredictionAccuracy(svdfp18, getData(svde, "unknown")),
+               sv19 = calcPredictionAccuracy(svdfp19, getData(svde, "unknown")),
+               sv20 = calcPredictionAccuracy(svdfp20, getData(svde, "unknown"))
                )
 
 errormods
+
+svdf_rec <- Recommender(train_rrm, method = "SVDF", param=list(k=10, gamma = 0.025, lambda = 0.001, min_epochs = 50, max_epochs = 200, min_improvement = 1e-07, verbose = TRUE)) #9.27
+
+preds_svdf <- predict(svdf_rec, train_rrm, type="ratingMatrix")
 
 preds_svdf_mat <- as(preds_svdf, "matrix")
 preds_svdf_df <- as.data.frame(preds_svdf_mat)
@@ -188,7 +228,7 @@ test_rat_svdf[test_rat_svdf$rating < 0, "rating"] <- 0
 svdf_out <- test_rat_svdf %>% 
   select(user_item, rating)
 
-write_csv(svdf_out, "./predictions/svdfv1.csv")
+write_csv(svdf_out, "./predictions/svdfv2.csv")
 ```
 
 # super out
