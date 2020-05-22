@@ -422,62 +422,59 @@ library(recommenderlab)
 load(file = "./models/svdf_epic.RData")
 #BOOST on Collab
 
-<<<<<<< HEAD
-#linear model using rating predictions from collab filteirng
-=======
-train <- readRDS("./AT2_train_STUDENT.rds")
-train_ratings <- train %>% 
-  select(user_id, item_id, rating) %>% 
-  pivot_wider(names_from = item_id, values_from = rating) %>% 
-  column_to_rownames(var = "user_id")
+# train <- readRDS("./AT2_train_STUDENT.rds")
+# train_ratings <- train %>%
+#   select(user_id, item_id, rating) %>%
+#   pivot_wider(names_from = item_id, values_from = rating) %>%
+#   column_to_rownames(var = "user_id")
+# 
+# train_matrix <- as.matrix(train_ratings)
+# train_rrm <- as(train_matrix, "realRatingMatrix")
+# 
+# 
+# 
+# preds_svdf <- predict(svdf_rec, train_rrm, type="ratingMatrix")
+# 
+# preds_svdf_mat <- as(preds_svdf, "matrix")
+# preds_svdf_df <- as.data.frame(preds_svdf_mat)
+# 
+# preds_piv_svdf<- preds_svdf_df
+# preds_piv_svdf <- preds_svdf_df %>%
+#   rownames_to_column(var = "user_id") %>%
+#   pivot_longer(cols = -user_id, names_to = "item_id", values_to = "rating")
+# 
+# test_rat_svdf <- left_join(test_rat, preds_piv_svdf, by = c("user_id", "item_id"))
+# 
+# test_rat_svdf[test_rat_svdf$rating > 5, "rating"] <- 5
+# test_rat_svdf[test_rat_svdf$rating < 0, "rating"] <- 0
+# 
+# svdf_out <- test_rat_svdf %>%
+#   select(user_item, rating)
+# 
+# 
+# train_out <- train
+# 
+# train_rat <- train_out %>%
+#   select(user_id, item_id, rating_t = rating) %>%
+#   mutate(user_item = paste(user_id,item_id,sep = "_"))
+# 
+# train_rat_svdf <- left_join(train_rat, preds_piv_svdf, by = c("user_id", "item_id"))
+# 
+# train_rat_svdf[train_rat_svdf$rating > 5, "rating"] <- 5
+# train_rat_svdf[train_rat_svdf$rating < 0, "rating"] <- 0
+# 
+# train_sel <- train %>%
+#   select(user_id, item_id, age, gender, occupation)
+# 
+# train_xg <- left_join(train_rat_svdf, train_sel, by = c("user_id","item_id"))
+# train_xg$user_id <- as.numeric(train_xg$user_id)
+# train_xg$item_id <- as.numeric(train_xg$item_id)
+# train_xg <- train_xg %>%
+#   select(-user_item)
+# 
+# train_xg_1h <- dummyVars(~. -user_id, data = train_xg, fullRank = TRUE)
+# train_xg_1h <- predict(train_xg_1h, newdata = train_xg)
 
-train_matrix <- as.matrix(train_ratings)
-train_rrm <- as(train_matrix, "realRatingMatrix")
-
-
-
-preds_svdf <- predict(svdf_rec, train_rrm, type="ratingMatrix")
-
-preds_svdf_mat <- as(preds_svdf, "matrix")
-preds_svdf_df <- as.data.frame(preds_svdf_mat)
-
-preds_piv_svdf<- preds_svdf_df
-preds_piv_svdf <- preds_svdf_df %>% 
-  rownames_to_column(var = "user_id") %>% 
-  pivot_longer(cols = -user_id, names_to = "item_id", values_to = "rating")
-
-test_rat_svdf <- left_join(test_rat, preds_piv_svdf, by = c("user_id", "item_id"))
-
-test_rat_svdf[test_rat_svdf$rating > 5, "rating"] <- 5
-test_rat_svdf[test_rat_svdf$rating < 0, "rating"] <- 0 
-
-svdf_out <- test_rat_svdf %>% 
-  select(user_item, rating)
-
-
-train_out <- train
-
-train_rat <- train_out %>% 
-  select(user_id, item_id, rating_t = rating) %>% 
-  mutate(user_item = paste(user_id,item_id,sep = "_"))
-
-train_rat_svdf <- left_join(train_rat, preds_piv_svdf, by = c("user_id", "item_id"))
-
-train_rat_svdf[train_rat_svdf$rating > 5, "rating"] <- 5
-train_rat_svdf[train_rat_svdf$rating < 0, "rating"] <- 0 
-
-train_sel <- train %>% 
-  select(user_id, item_id, age, gender, occupation)
-
-train_xg <- left_join(train_rat_svdf, train_sel, by = c("user_id","item_id"))
-train_xg$user_id <- as.numeric(train_xg$user_id)
-train_xg$item_id <- as.numeric(train_xg$item_id)
-train_xg <- train_xg %>% 
-  select(-user_item)
-
-train_xg_1h <- dummyVars(~. -user_id, data = train_xg, fullRank = TRUE)
-train_xg_1h <- predict(train_xg_1h, newdata = train_xg)
->>>>>>> 521e93707ee50bba0c1ecd31f66ff82ab46258eb
 
 control_lin <- trainControl(method = "adaptive_cv",
                             number = 10,
