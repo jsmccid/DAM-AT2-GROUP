@@ -10,7 +10,6 @@ library(forcats)
 # library(data.table)
 # library(mltools)
 # library(doParallel)
-library(keras)
 ```
 
 
@@ -21,13 +20,16 @@ str(og_train_data)
 
 ```{r}
 set.seed(85)
+
+# remove problem variables that have na's and are represented elsewhere
 og_train_data <- og_train_data %>% 
   select(-video_release_date, -zip_code, -item_id) %>% 
   na.omit()
 
+#change structure to numeric for ease of modelling
 og_train_data$timestamp <- as.numeric(og_train_data$timestamp)
 
-
+#test train split
 og_train = createDataPartition(y = og_train_data$rating, p = 0.7, list = F)
 new_train <- og_train_data[og_train, ]
 new_test <- og_train_data[-og_train, ]
@@ -59,13 +61,7 @@ control_lin <- trainControl(method = "adaptive_cv",
   
   train <- new_train
   test <- new_test
-  # 
-  # train_x <- model.matrix(~. -user_id, train[,-7])
-  # train_y <- train$rating
-  # 
-  # test_x <- model.matrix(~. -user_id , test[, -7])
-  # test_y <- test$rating
-  
+
 
   ######
   # train model
@@ -73,6 +69,8 @@ control_lin <- trainControl(method = "adaptive_cv",
   # timer
  
   start <- proc.time()
+  
+  #model with xgboost linear
 
   lin_mod <- train(rating ~. -user_id,
                            data = train,
@@ -89,20 +87,8 @@ control_lin <- trainControl(method = "adaptive_cv",
   end_time <- as.numeric((paste(end[3])))
   
   ######
-  # evaluate model
-  
-  # predictions
 
-#  <- cbind(train, pred = predict(lin_mod, train, type = "raw")) 
-
-  # pred <- data.frame(Target = test_y, preds = pred_class, probs = pred_prob$buy)
-  
-  # save all outputs
-  
-
-#  listout <- llist(xmodel, end_time, pred, confusionm, perf, perf_auc, auc)
- 
-# assign("complex_boost", listout)
+  # save model
   
 save(lin_mod, file = "./models/boostv1.Rdata")
   
@@ -121,43 +107,56 @@ better_train <- readRDS("./better_train.rds")
 
 ```{r}
 
+# clust <- makePSOCKcluster(1, cores = 5)
+# registerDoParallel(clust)
+
 set.seed(85)
 
 #transformations
 
+# change variable types to reduce factor levels in dataset
 better_train$user_id <- as.numeric(better_train$user_id)
 better_train$item_id <- as.numeric(better_train$item_id)
 
 better_train$release_date <- as.numeric(better_train$release_date) 
 better_train$timestamp <- as.numeric(better_train$timestamp)
 
+#change state to factor
 better_train$State <- as.factor(better_train$State)
 
+#add factor level missing in place of na
 better_train <- better_train %>% mutate_if(is.factor,
                          fct_explicit_na,
                          na_level = "missing")
 
+# similar for other variables
 better_train$older_than_reviewer <- as.factor(better_train$older_than_reviewer)
 better_train$older_than_reviewer <- fct_explicit_na(better_train$older_than_reviewer, na_level = "missing")
 
-better_train_pre <- preProcess(better_train, method = "medianImpute")
+#bag impute na values
+better_train_pre <- preProcess(better_train, method = "bagImpute")
 better_train <- predict(better_train_pre, newdata = better_train)
 
+#remove target from train
 better_train_x <- better_train %>% 
   select(-rating)
 
+#create target vector
 better_train_y <- better_train$rating
 
+# one hot encode all factors in matrix
 better_train_1h <- dummyVars(~. -user_id, data = better_train_x, fullRank = TRUE)
 better_train_1h <- predict(better_train_1h, newdata = better_train_x)
 
 
 
- 
-  nas <- better_train %>% 
-    filter_all(any_vars(is.na(.)))
+ #check for infinte values
+  infs <- better_train %>% 
+    filter_all(any_vars(is.infinite(.)))
  # 
  # str(better_train)
+
+# stopCluster(clust)
 
 ```
 
@@ -294,82 +293,13 @@ control_lin <- trainControl(method = "adaptive_cv",
   
 
 ```
-```{r}
 
-clust <- makePSOCKcluster(1, cores = 5)
-registerDoParallel(clust)
-
-better_test <- readRDS("G:/git/DAM-AT2-GROUP/better_test.rds")
-
-better_test$user_id <- as.numeric(better_test$user_id)
-better_test$item_id <- as.numeric(better_test$item_id)
-
-better_test$release_date <- as.numeric(better_test$release_date) 
-better_test$timestamp <- as.numeric(better_test$timestamp)
-
-better_test$State <- as.factor(better_test$State)
-
-better_test <- better_test %>% mutate_if(is.factor,
-                         fct_explicit_na,
-                         na_level = "missing")
-
-better_test$older_than_reviewer <- as.factor(better_test$older_than_reviewer)
-# better_test$older_than_reviewer <- fct_explicit_na(better_test$older_than_reviewer, na_level = "missing")
-levels(better_test$older_than_reviewer) <- c("FALSE", "TRUE", "missing")
-
-better_test_pre <- preProcess(better_test, method = "bagImpute")
-better_test <- predict(better_test_pre, newdata = better_test)
-
-# better_train_x <- better_train %>%
-#   select(-rating)
-
-# better_train_y <- better_test$rating
-
-
-better_test_1h <- dummyVars(~. -user_id, data = better_test, fullRank = TRUE)
-better_test_1h <- predict(better_test_1h, newdata = better_test)
-
-# dplyr::setdiff(colnames(better_test_1h),colnames(better_train_1h))
-# 
-# dplyr::setdiff(colnames(better_train_1h),colnames(better_test_1h))
-
-#######################################
- 
- col.order <- colnames(better_train_1h)
-better_test_1h <- better_test_1h[,col.order]
-
-
-better_test$predictions <- predict(lin_mod_better, better_test_1h)
-
-better_test$user_item <- paste(better_test$user_id, better_test$item_id, sep="_")
-preds <- better_test %>% 
-  ungroup() %>% 
-  select(rating, user_item)
-
-# preds[preds$rating >= 5, "rating"] <- 5
-# preds[preds$rating <= 1, "rating"] <- 1
-
-#pred <- data.frame(Target = test_y, preds = pred_class, probs = pred_prob$buy)
-
-
-stopCluster(clust)
-
-# str(preds)
-write_csv(preds, "./predictions/batgb_predictionsv2.csv")
-
-#v1 xgboost linear, darren first round engineered variables
-#2 no concatenating range
-
-
-```
-
-## nerual net
 
 ```{r}
 set.seed(85)
 
 
-
+Sys.setenv("CUDA_VISIBLE_DEVICES" = -1) 
 
 # controller for boost
 
@@ -398,22 +328,24 @@ control_lin <- trainControl(method = "adaptive_cv",
                            metric = "RMSE",
                            maximize = FALSE,
                            tuneLength = 20,
-                           nthread = 6)
+                           nthread = 14)
 
   end <- proc.time() - start
   end_time <- as.numeric((paste(end[3])))
-  
-  save(nn_mod_b, file = "./models/nnetv1.Rdata")
 ```
 
 
 
 ```{r}
 
-# clust <- makePSOCKcluster(1, cores = 5)
-# registerDoParallel(clust)
+clust <- makePSOCKcluster(1, cores = 5)
+registerDoParallel(clust)
 
-better_test <- readRDS("./better_test.rds")
+# make predictions
+
+#prepare test data with same format as train
+
+better_test <- readRDS("G:/git/DAM-AT2-GROUP/better_test.rds")
 
 better_test$user_id <- as.numeric(better_test$user_id)
 better_test$item_id <- as.numeric(better_test$item_id)
@@ -431,13 +363,9 @@ better_test$older_than_reviewer <- as.factor(better_test$older_than_reviewer)
 # better_test$older_than_reviewer <- fct_explicit_na(better_test$older_than_reviewer, na_level = "missing")
 levels(better_test$older_than_reviewer) <- c("FALSE", "TRUE", "missing")
 
-better_test_pre <- preProcess(better_test, method = "medianImpute")
+better_test_pre <- preProcess(better_test, method = "bagImpute")
 better_test <- predict(better_test_pre, newdata = better_test)
 
-# better_train_x <- better_train %>%
-#   select(-rating)
-
-# better_train_y <- better_test$rating
 
 
 better_test_1h <- dummyVars(~. -user_id, data = better_test, fullRank = TRUE)
@@ -449,27 +377,31 @@ better_test_1h <- predict(better_test_1h, newdata = better_test)
 
 #######################################
  
+#fix change in col order so sets match
  col.order <- colnames(better_train_1h)
 better_test_1h <- better_test_1h[,col.order]
 
+#make predictions
+better_test$predictions <- predict(lin_mod_better, better_test_1h)
 
-better_test$rating <- predict(nn_mod_b, better_test_1h)
+#structure output
 
 better_test$user_item <- paste(better_test$user_id, better_test$item_id, sep="_")
 preds <- better_test %>% 
   ungroup() %>% 
   select(rating, user_item)
 
- preds[preds$rating >= 5, "rating"] <- 5
- preds[preds$rating <= 1, "rating"] <- 1
+#bring values within range
+# preds[preds$rating >= 5, "rating"] <- 5
+# preds[preds$rating <= 1, "rating"] <- 1
 
 #pred <- data.frame(Target = test_y, preds = pred_class, probs = pred_prob$buy)
 
-# 
-# stopCluster(clust)
 
-# str(preds)
-write_csv(preds, "./predictions/nn_predictionsv1.csv")
+stopCluster(clust)
+
+# write predictions
+write_csv(preds, "./predictions/batgb_predictionsv2.csv")
 
 #v1 xgboost linear, darren first round engineered variables
 #2 no concatenating range
