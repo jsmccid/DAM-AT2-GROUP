@@ -13,6 +13,16 @@ rm(old)
 
 df <- readRDS('better_train.rds')
 
+df <- df %>% 
+  mutate(age_band = as.character(age_band))
+
+
+df$age_band[df$age_band == "under_18"]= "< 18 yrs"
+df$age_band[df$age_band == "18_to_29"]= "18-29 yrs"
+df$age_band[df$age_band == "30_to_44"]= "30-44 yrs"
+df$age_band[df$age_band == "45_and_over"]= "> 45 yrs"
+
+
 
 #Count Graphs for reviews
 for (var in c("favoured","rating","item_imdb_mature_rating")){
@@ -30,9 +40,9 @@ user_base <- df %>%
 
 ggplot(user_base,aes(x = gender)) + geom_bar() +
   facet_wrap(age_band~.)+
-  labs(title = "Counts by of uses by age band and gender",x = 'Gender',y = "Count") 
-unlink(paste(graph_dir,"Counts by age_band and gender.png",sep = ""))
-ggsave(paste(graph_dir,"Counts ratings by age_band and gender.png",sep = ""))
+  labs(title = "Counts of users by age band and gender",x = 'Gender',y = "Count") 
+unlink(paste(graph_dir,"Counts of users by age_band and gender.png",sep = ""))
+ggsave(paste(graph_dir,"Counts of users by age_band and gender.png",sep = ""))
 
 #check user ratings in more detail
 ggplot(df %>% 
