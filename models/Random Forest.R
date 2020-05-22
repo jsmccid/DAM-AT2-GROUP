@@ -185,8 +185,8 @@ ggplot(max_pdp %>%  filter(max_val <= 5),
          x = "Value of Variable",
          y = "Predicted Rating") +
   theme(legend.position="bottom",legend.direction = "vertical")
-unlink(paste(graph_dir,"PDP_5.png",sep = ""))
-ggsave(paste(graph_dir,"PDP_5.png",sep = ""))
+unlink(paste(graph_dir,"RF_PDP_5.png",sep = ""))
+ggsave(paste(graph_dir,"RF_PDP_5.png",sep = ""))
 
 #plot PDP with reveiws
 
@@ -197,8 +197,8 @@ ggplot(max_pdp %>%  filter(var == "reviews"),
        x = "Reviews",
        y = "Predicted Rating") +
   theme(legend.position="bottom",legend.direction = "vertical")
-unlink(paste(graph_dir,"PDP_review.png",sep = ""))
-ggsave(paste(graph_dir,"PDP_review.png",sep = ""))
+unlink(paste(graph_dir,"RF_PDP_review.png",sep = ""))
+ggsave(paste(graph_dir,"RF_PDP_review.png",sep = ""))
 
 #remianing variables
 
@@ -209,8 +209,8 @@ ggplot(max_pdp %>%  filter(var  == "timestamp"),
        x = "Date of review",
        y = "Predicted Rating") +
   theme(legend.position="bottom",legend.direction = "vertical")
-unlink(paste(graph_dir,"PDP_other.png",sep = ""))
-ggsave(paste(graph_dir,"PDP_other.png",sep = ""))
+unlink(paste(graph_dir,"RF_PDP_other.png",sep = ""))
+ggsave(paste(graph_dir,"RF_PDP_other.png",sep = ""))
 
 
 #save(rf_model, file = "models/rf_8_781_384.Rdata")
